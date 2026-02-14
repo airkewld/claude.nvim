@@ -14,14 +14,52 @@ Neovim plugin for running multiple Claude Code sessions in floating terminal win
 - **Auto-cleanup** of exited sessions (opt-in)
 - **Fully configurable** keymaps, window sizing, borders, and timeouts
 
-## Setup
+## Requirements
+
+- Neovim >= 0.9
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and in your `PATH`
+
+## Installation
+
+### [lazy.nvim](https://github.com/folke/lazy.nvim)
 
 ```lua
--- lazy.nvim
 {
-  dir = '~/path/to/claude',
-  config = function() require('claude').setup() end,
+  'airkewld/claude.nvim',
+  config = function()
+    require('claude').setup()
+  end,
 }
+```
+
+### [packer.nvim](https://github.com/wbthomason/packer.nvim)
+
+```lua
+use {
+  'airkewld/claude.nvim',
+  config = function()
+    require('claude').setup()
+  end,
+}
+```
+
+### [vim-plug](https://github.com/junegunn/vim-plug)
+
+```vim
+Plug 'airkewld/claude.nvim'
+```
+
+Then in your `init.lua`:
+
+```lua
+require('claude').setup()
+```
+
+### [mini.deps](https://github.com/echasnovski/mini.deps)
+
+```lua
+MiniDeps.add({ source = 'airkewld/claude.nvim' })
+require('claude').setup()
 ```
 
 ## Default Configuration
