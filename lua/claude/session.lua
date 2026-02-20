@@ -3,6 +3,7 @@
 
 local terminal = require('claude.terminal')
 local config = require('claude.config')
+local rules = require('claude.rules')
 
 local M = {}
 
@@ -27,6 +28,24 @@ local function session_visible(session)
     and state.sessions[state.active] == session
 end
 
+function M._handle_idle(session)
+  if not session.is_alive then return end
+
+  if not session.init_prompt_sent and config.get().enforce_claude_md then
+    local prompt = rules.build_init_prompt()
+    if prompt then
+      session.init_prompt_sent = true
+      terminal.send_input(session.job_id, prompt)
+      return
+    end
+  end
+
+  if not session_visible(session) and not session.notified_idle then
+    session.notified_idle = true
+    vim.notify('Claude (' .. session.name .. ') is waiting for input', vim.log.levels.INFO)
+  end
+end
+
 local function watch_output(session)
   vim.api.nvim_buf_attach(session.bufnr, false, {
     on_lines = function()
@@ -35,10 +54,7 @@ local function watch_output(session)
       stop_idle_timer(session)
       session.idle_timer = vim.uv.new_timer()
       session.idle_timer:start(config.get().idle_timeout_ms, 0, vim.schedule_wrap(function()
-        if not session_visible(session) and session.is_alive and not session.notified_idle then
-          session.notified_idle = true
-          vim.notify('Claude (' .. session.name .. ') is waiting for input', vim.log.levels.INFO)
-        end
+        M._handle_idle(session)
       end))
     end,
   })
@@ -81,6 +97,7 @@ function M.create(name, args)
     is_alive = true,
     idle_timer = nil,
     notified_idle = false,
+    init_prompt_sent = false,
   }
 
   table.insert(state.sessions, session)
