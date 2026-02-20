@@ -62,6 +62,17 @@ function M.create(name, args)
     end
   end
 
+  local cli_args = config.get().cli_args
+  if cli_args and #cli_args > 0 then
+    local merged = { unpack(cli_args) }
+    if args then
+      for _, a in ipairs(args) do
+        table.insert(merged, a)
+      end
+    end
+    args = merged
+  end
+
   local bufnr, job_id = terminal.create(args)
   local session = {
     name = name,

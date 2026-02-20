@@ -21,8 +21,14 @@ function M.create(args)
     vim.b[bufnr].claude_job_id = job_id
   end)
 
-  -- Esc exits terminal mode so normal-mode keymaps (like leader+cl) work
+  -- Esc exits terminal mode; a second Esc in normal mode hides the float
   vim.api.nvim_buf_set_keymap(bufnr, 't', '<Esc>', [[<C-\><C-n>]], { noremap = true })
+  vim.api.nvim_buf_set_keymap(bufnr, 'n', '<Esc>', '', {
+    noremap = true,
+    callback = function()
+      vim.api.nvim_exec_autocmds('User', { pattern = 'ClaudeHide' })
+    end,
+  })
 
   return bufnr, vim.b[bufnr].claude_job_id
 end

@@ -4,6 +4,7 @@
 local M = {}
 
 local defaults = {
+  cli_args = { '--permission-mode', 'plan' },
   idle_timeout_ms = 3000,
   auto_remove_exited = false,
   window = {
