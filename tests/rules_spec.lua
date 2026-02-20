@@ -29,7 +29,7 @@ describe('rules', function()
     assert.is_nil(result)
   end)
 
-  it('includes content from a single file', function()
+  it('includes @ reference for a single file', function()
     local path = tmpdir .. '/CLAUDE.md'
     write_file(path, 'Rule 1: Be nice')
 
@@ -37,11 +37,11 @@ describe('rules', function()
       { path, 'Test rules' },
     })
     assert.is_not_nil(result)
-    assert.truthy(result:find('Rule 1: Be nice', 1, true))
-    assert.truthy(result:find('Test rules', 1, true))
+    assert.truthy(result:find('@' .. path, 1, true))
+    assert.falsy(result:find('Rule 1: Be nice', 1, true))
   end)
 
-  it('includes content from multiple files', function()
+  it('includes @ references for multiple files', function()
     local global = tmpdir .. '/global.md'
     local local_md = tmpdir .. '/local.md'
     write_file(global, 'Global rule')
@@ -52,8 +52,10 @@ describe('rules', function()
       { local_md, 'Local' },
     })
     assert.is_not_nil(result)
-    assert.truthy(result:find('Global rule', 1, true))
-    assert.truthy(result:find('Local rule', 1, true))
+    assert.truthy(result:find('@' .. global, 1, true))
+    assert.truthy(result:find('@' .. local_md, 1, true))
+    assert.falsy(result:find('Global rule', 1, true))
+    assert.falsy(result:find('Local rule', 1, true))
   end)
 
   it('skips files that do not exist', function()
@@ -65,8 +67,8 @@ describe('rules', function()
       { path, 'Present' },
     })
     assert.is_not_nil(result)
-    assert.truthy(result:find('Exists', 1, true))
-    assert.falsy(result:find('Missing', 1, true))
+    assert.truthy(result:find('@' .. path, 1, true))
+    assert.falsy(result:find('nonexistent.md', 1, true))
   end)
 
   it('skips empty files', function()
