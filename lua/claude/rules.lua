@@ -3,16 +3,13 @@
 
 local M = {}
 
-local function read_file(path)
+local function file_exists(path)
   local expanded = vim.fn.expand(path)
   local f = io.open(expanded, 'r')
-  if not f then return nil end
+  if not f then return false end
   local content = f:read('*a')
   f:close()
-  if content and #content > 0 then
-    return content
-  end
-  return nil
+  return content and #content > 0
 end
 
 function M.build_init_prompt(paths)
@@ -21,19 +18,18 @@ function M.build_init_prompt(paths)
     paths = config.get().claude_md_paths
   end
 
-  local sections = {}
+  local refs = {}
   for _, entry in ipairs(paths) do
-    local content = read_file(entry[1])
-    if content then
-      table.insert(sections, string.format('=== %s ===\n%s', entry[2], content))
+    if file_exists(entry[1]) then
+      table.insert(refs, '@' .. entry[1])
     end
   end
 
-  if #sections == 0 then return nil end
+  if #refs == 0 then return nil end
 
-  return 'IMPORTANT: Read and strictly follow these rules throughout this session:\n\n'
-    .. table.concat(sections, '\n\n')
-    .. '\n\nBriefly acknowledge these rules, then wait for my instructions.'
+  return 'IMPORTANT: You MUST read and follow ALL rules in the files referenced below. '
+    .. 'Confirm you have read them, then wait for instructions.\n\n'
+    .. table.concat(refs, '\n')
 end
 
 return M
