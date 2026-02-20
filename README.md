@@ -12,6 +12,8 @@ Neovim plugin for running multiple Claude Code sessions in floating terminal win
 - **CLI argument passthrough** for flags like `--resume`, `--continue`, `--model`
 - **Statusline integration** for lualine or any statusline plugin
 - **Auto-cleanup** of exited sessions (opt-in)
+- **Automatic CLAUDE.md rule enforcement** sends your project rules to Claude on session start
+- **Esc to hide** — first Esc exits terminal mode, second Esc hides the floating window
 - **Fully configurable** keymaps, window sizing, borders, and timeouts
 
 ## Requirements
@@ -68,6 +70,13 @@ All values below are defaults. Pass a table to `setup()` to override any of them
 
 ```lua
 require('claude').setup({
+  cli_args = { '--permission-mode', 'plan' },  -- default CLI args for every session
+  enforce_claude_md = true,     -- send CLAUDE.md rules on session start
+  claude_md_paths = {           -- paths to check for rule files
+    { '~/.claude/CLAUDE.md', 'Global rules (~/.claude/CLAUDE.md)' },
+    { 'CLAUDE.md', 'Local rules (CLAUDE.md)' },
+    { '.claude/CLAUDE.md', 'Local rules (.claude/CLAUDE.md)' },
+  },
   idle_timeout_ms = 3000,       -- ms before "waiting for input" notification
   auto_remove_exited = false,   -- automatically remove sessions after process exits
   window = {
@@ -90,10 +99,12 @@ Set any keymap to `false` to disable it.
 
 ## Keymaps
 
-| Key | Action |
-|-----|--------|
-| `<leader>cl` | Toggle active session (creates one if none exist) |
-| `<leader>cs` | Open sessions menu |
+| Key | Mode | Action |
+|-----|------|--------|
+| `<leader>cl` | normal | Toggle active session (creates one if none exist) |
+| `<leader>cs` | normal | Open sessions menu |
+| `<Esc>` | terminal | Exit terminal mode (enter normal mode in the float) |
+| `<Esc>` | normal (in float) | Hide the floating window |
 
 ## Commands
 
@@ -168,6 +179,19 @@ Claude (my-session) is waiting for input
 ```
 
 This only fires for sessions that aren't currently visible. Bringing the session into view resets the idle timer.
+
+## Rule Enforcement
+
+Claude doesn't always follow the rules in your CLAUDE.md files — it can lose track of them as conversations grow. This plugin addresses that by sending your rule files to the session as soon as it starts (on first idle), ensuring Claude always has them in context.
+
+On first idle, the plugin checks for CLAUDE.md files at the configured paths and sends `@file` references into the session. Claude reads the referenced files and confirms before you start working.
+
+Default paths checked:
+- `~/.claude/CLAUDE.md` (global rules)
+- `CLAUDE.md` (project root)
+- `.claude/CLAUDE.md` (project config directory)
+
+To disable: set `enforce_claude_md = false` in your setup. To customize which files are sent, override `claude_md_paths` — each entry is a `{ path, label }` pair.
 
 ## Auto-Cleanup
 
