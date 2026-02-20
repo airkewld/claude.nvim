@@ -180,6 +180,13 @@ function M.setup(opts)
   })
 
   vim.api.nvim_create_autocmd('User', {
+    pattern = 'ClaudeHide',
+    callback = function()
+      hide()
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('User', {
     pattern = 'ClaudeExit',
     callback = function(ev)
       local bufnr = ev.data and ev.data.bufnr
