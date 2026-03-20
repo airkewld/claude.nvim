@@ -302,7 +302,6 @@ function M.resume(index)
   table.insert(args, '--resume')
   table.insert(args, s.session_id)
 
-  s.resuming = true
   local bufnr, job_id = terminal.create(args)
   s.bufnr = bufnr
   s.job_id = job_id
