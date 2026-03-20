@@ -4,6 +4,7 @@
 local terminal = require('claude.terminal')
 local config = require('claude.config')
 local rules = require('claude.rules')
+local persistence = require('claude.persistence')
 
 local M = {}
 
@@ -89,9 +90,15 @@ function M.create(name, args)
     args = merged
   end
 
+  local session_id = persistence.generate_session_id()
+  if not args then args = {} end
+  table.insert(args, '--session-id')
+  table.insert(args, session_id)
+
   local bufnr, job_id = terminal.create(args)
   local session = {
     name = name,
+    session_id = session_id,
     bufnr = bufnr,
     job_id = job_id,
     is_alive = true,
