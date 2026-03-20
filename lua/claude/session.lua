@@ -203,9 +203,19 @@ function M.find_by_bufnr(bufnr)
   return nil, nil
 end
 
-function M.on_exit(bufnr)
+function M.on_exit(bufnr, exit_code)
   local index, session = M.find_by_bufnr(bufnr)
   if not session then return end
+
+  local resume_failed = session.resuming and exit_code ~= 0
+  session.resuming = nil
+
+  if resume_failed then
+    local name = session.name
+    M.remove(index)
+    vim.notify('Session "' .. name .. '" could not be resumed (not found in CLI)', vim.log.levels.WARN)
+    return true
+  end
 
   session.is_alive = false
   stop_idle_timer(session)

@@ -14,8 +14,8 @@ function M.create(args)
 
   vim.api.nvim_buf_call(bufnr, function()
     local job_id = vim.fn.termopen(cmd, {
-      on_exit = function()
-        vim.api.nvim_exec_autocmds('User', { pattern = 'ClaudeExit', data = { bufnr = bufnr } })
+      on_exit = function(_, exit_code)
+        vim.api.nvim_exec_autocmds('User', { pattern = 'ClaudeExit', data = { bufnr = bufnr, exit_code = exit_code } })
       end,
     })
     vim.b[bufnr].claude_job_id = job_id
