@@ -48,6 +48,12 @@ function M.switch_to_active()
   local s = session.get_active()
   if not s then return end
 
+  if session.is_dormant(s) then
+    session.resume(session.active_index())
+    s = session.get_active()
+    if not s then return end
+  end
+
   local winnr = session.get_winnr()
   if winnr and vim.api.nvim_win_is_valid(winnr) then
     vim.api.nvim_win_set_buf(winnr, s.bufnr)
@@ -65,7 +71,23 @@ end
 local function toggle()
   local s = session.get_active()
 
-  if not s or not vim.api.nvim_buf_is_valid(s.bufnr) then
+  if not s then
+    session.create()
+    s = session.get_active()
+    if not s then return end
+    show(s)
+    return
+  end
+
+  if session.is_dormant(s) then
+    session.resume(session.active_index())
+    s = session.get_active()
+    if not s then return end
+    show(s)
+    return
+  end
+
+  if not vim.api.nvim_buf_is_valid(s.bufnr) then
     session.create()
     s = session.get_active()
     if not s then return end
@@ -130,6 +152,7 @@ local subcommands = {
 
 function M.setup(opts)
   config.setup(opts)
+  session.load_state()
   local keys = config.get().keymaps
 
   local function map(key, fn, desc)
@@ -221,6 +244,12 @@ function M.setup(opts)
       if winnr and tostring(winnr) == ev.match then
         session.set_winnr(nil)
       end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('VimLeavePre', {
+    callback = function()
+      session.save_state()
     end,
   })
 end

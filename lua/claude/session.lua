@@ -4,6 +4,7 @@
 local terminal = require('claude.terminal')
 local config = require('claude.config')
 local rules = require('claude.rules')
+local persistence = require('claude.persistence')
 
 local M = {}
 
@@ -89,9 +90,15 @@ function M.create(name, args)
     args = merged
   end
 
+  local session_id = persistence.generate_session_id()
+  if not args then args = {} end
+  table.insert(args, '--session-id')
+  table.insert(args, session_id)
+
   local bufnr, job_id = terminal.create(args)
   local session = {
     name = name,
+    session_id = session_id,
     bufnr = bufnr,
     job_id = job_id,
     is_alive = true,
@@ -103,6 +110,7 @@ function M.create(name, args)
   table.insert(state.sessions, session)
   state.active = #state.sessions
   watch_output(session)
+  M.save_state()
   return session
 end
 
@@ -111,7 +119,7 @@ function M.remove(index)
   if not session then return end
 
   stop_idle_timer(session)
-  if vim.api.nvim_buf_is_valid(session.bufnr) then
+  if session.bufnr and vim.api.nvim_buf_is_valid(session.bufnr) then
     vim.api.nvim_buf_delete(session.bufnr, { force = true })
   end
 
@@ -124,6 +132,8 @@ function M.remove(index)
   elseif state.active > index then
     state.active = state.active - 1
   end
+
+  M.save_state()
 end
 
 function M.get_active()
@@ -166,6 +176,7 @@ function M.swap(i, j)
   elseif state.active == j then
     state.active = i
   end
+  M.save_state()
   return true
 end
 
@@ -179,6 +190,7 @@ function M.rename(index, new_name)
     end
   end
   s.name = new_name
+  M.save_state()
   return true
 end
 
@@ -219,6 +231,73 @@ function M.statusline()
     return 'Claude: ' .. s.name
   end
   return string.format('Claude: %s [%d/%d]', s.name, state.active, #state.sessions)
+end
+
+function M.is_dormant(s)
+  return s.bufnr == nil
+end
+
+function M.save_state()
+  local data = {
+    sessions = {},
+    active = state.active,
+    counter = state.counter,
+  }
+  for _, s in ipairs(state.sessions) do
+    table.insert(data.sessions, {
+      name = s.name,
+      session_id = s.session_id,
+    })
+  end
+  persistence.save(data)
+end
+
+function M.load_state()
+  local data = persistence.load()
+  if not data or not data.sessions or #data.sessions == 0 then return end
+
+  for _, saved in ipairs(data.sessions) do
+    table.insert(state.sessions, {
+      name = saved.name,
+      session_id = saved.session_id,
+      bufnr = nil,
+      job_id = nil,
+      is_alive = false,
+      idle_timer = nil,
+      notified_idle = false,
+      init_prompt_sent = true,
+    })
+  end
+
+  state.active = data.active or 1
+  state.counter = data.counter or #state.sessions
+end
+
+function M.resume(index)
+  local s = state.sessions[index]
+  if not s or not M.is_dormant(s) then return end
+
+  if vim.fn.executable('claude') ~= 1 then
+    vim.notify('claude: not found in PATH', vim.log.levels.ERROR)
+    return
+  end
+
+  local cli_args = config.get().cli_args
+  local args = {}
+  if cli_args and #cli_args > 0 then
+    for _, a in ipairs(cli_args) do
+      table.insert(args, a)
+    end
+  end
+  table.insert(args, '--resume')
+  table.insert(args, s.session_id)
+
+  local bufnr, job_id = terminal.create(args)
+  s.bufnr = bufnr
+  s.job_id = job_id
+  s.is_alive = true
+  s.init_prompt_sent = true
+  watch_output(s)
 end
 
 function M.get_winnr()

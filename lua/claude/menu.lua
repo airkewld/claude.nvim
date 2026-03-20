@@ -38,7 +38,14 @@ function M.render()
   else
     for i, s in ipairs(sessions) do
       local marker = i == active and '>' or ' '
-      local status = s.is_alive and '[running]' or '[exited]'
+      local status
+      if session.is_dormant(s) then
+        status = '[saved]'
+      elseif s.is_alive then
+        status = '[running]'
+      else
+        status = '[exited]'
+      end
       table.insert(lines, string.format('%s %d  %-20s %s', marker, i, s.name, status))
     end
   end
