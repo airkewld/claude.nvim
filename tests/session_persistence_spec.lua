@@ -249,6 +249,37 @@ describe('session persistence', function()
       assert.equals(vim.fn.getcwd(), data.sessions[1].cwd)
     end)
 
+    it('sets resuming flag for failed resume detection', function()
+      session = require('claude.session')
+      session.create('stale')
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      session.resume(1)
+      local s = session.list()[1]
+      assert.is_true(s.resuming)
+    end)
+
+    it('removes session on failed resume (non-zero exit)', function()
+      session = require('claude.session')
+      session.create('stale')
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      session.resume(1)
+      local s = session.list()[1]
+      local bufnr = s.bufnr
+
+      session.on_exit(bufnr, 1)
+      assert.equals(0, session.count())
+    end)
+
     it('does nothing for non-dormant sessions', function()
       session = require('claude.session')
       local s = session.create('active')
