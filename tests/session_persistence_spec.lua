@@ -310,4 +310,79 @@ describe('session persistence', function()
       assert.equals(0, #data.sessions)
     end)
   end)
+
+  describe('cross-instance visibility', function()
+    it('refresh_state picks up sessions written to disk by another instance', function()
+      session = require('claude.session')
+      session.create('local-session')
+
+      -- Simulate another instance writing a new session to disk
+      persistence.save({
+        sessions = {
+          { name = 'local-session', session_id = session.list()[1].session_id, cwd = vim.fn.getcwd() },
+          { name = 'remote-session', session_id = 'remote-uuid-123', cwd = '/other/project' },
+        },
+        active = 1,
+        counter = 2,
+      })
+
+      session.refresh_state()
+
+      assert.equals(2, session.count())
+      assert.equals('local-session', session.list()[1].name)
+      assert.equals('remote-session', session.list()[2].name)
+    end)
+
+    it('refresh_state preserves runtime state of locally running sessions', function()
+      session = require('claude.session')
+      local s = session.create('running')
+      local original_bufnr = s.bufnr
+      local original_job_id = s.job_id
+
+      -- Simulate another instance adding a session to disk
+      persistence.save({
+        sessions = {
+          { name = 'running', session_id = s.session_id, cwd = vim.fn.getcwd() },
+          { name = 'other', session_id = 'other-uuid', cwd = '/somewhere' },
+        },
+        active = 1,
+        counter = 2,
+      })
+
+      session.refresh_state()
+
+      local refreshed = session.list()[1]
+      assert.equals(original_bufnr, refreshed.bufnr)
+      assert.equals(original_job_id, refreshed.job_id)
+      assert.is_true(refreshed.is_alive)
+    end)
+
+    it('save_state merges with sessions from other instances', function()
+      session = require('claude.session')
+      session.create('mine')
+
+      -- Another instance wrote a session to disk
+      local my_id = session.list()[1].session_id
+      persistence.save({
+        sessions = {
+          { name = 'mine', session_id = my_id, cwd = vim.fn.getcwd() },
+          { name = 'theirs', session_id = 'their-uuid', cwd = '/their/project' },
+        },
+        active = 1,
+        counter = 2,
+      })
+
+      -- Local save should not overwrite the other instance's session
+      session.save_state()
+      local data = persistence.load()
+      assert.equals(2, #data.sessions)
+
+      local names = {}
+      for _, s in ipairs(data.sessions) do
+        names[s.name] = true
+      end
+      assert.is_true(names['mine'])
+      assert.is_true(names['theirs'])
+    end)
+  end)
 end)

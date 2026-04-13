@@ -13,6 +13,7 @@ local state = {
   active = 0,
   winnr = nil,
   counter = 0,
+  deleted_ids = {},
 }
 
 local function stop_idle_timer(session)
@@ -118,6 +119,8 @@ end
 function M.remove(index)
   local session = state.sessions[index]
   if not session then return end
+
+  state.deleted_ids[session.session_id] = true
 
   stop_idle_timer(session)
   if session.bufnr and vim.api.nvim_buf_is_valid(session.bufnr) then
@@ -243,19 +246,95 @@ function M.is_dormant(s)
 end
 
 function M.save_state()
-  local data = {
-    sessions = {},
+  local local_ids = {}
+  local local_sessions = {}
+  for _, s in ipairs(state.sessions) do
+    local entry = { name = s.name, session_id = s.session_id, cwd = s.cwd }
+    table.insert(local_sessions, entry)
+    local_ids[s.session_id] = true
+  end
+
+  -- Merge sessions from disk that this instance doesn't know about
+  local disk = persistence.load()
+  if disk and disk.sessions then
+    for _, s in ipairs(disk.sessions) do
+      if not local_ids[s.session_id] and not state.deleted_ids[s.session_id] then
+        table.insert(local_sessions, { name = s.name, session_id = s.session_id, cwd = s.cwd })
+      end
+    end
+  end
+
+  persistence.save({
+    sessions = local_sessions,
     active = state.active,
     counter = state.counter,
-  }
+  })
+end
+
+function M.refresh_state()
+  local data = persistence.load()
+  if not data or not data.sessions then return end
+
+  local running = {}
   for _, s in ipairs(state.sessions) do
-    table.insert(data.sessions, {
-      name = s.name,
-      session_id = s.session_id,
-      cwd = s.cwd,
-    })
+    if s.bufnr then
+      running[s.session_id] = s
+    end
   end
-  persistence.save(data)
+
+  local current_active_id = nil
+  if state.active >= 1 and state.active <= #state.sessions then
+    current_active_id = state.sessions[state.active].session_id
+  end
+
+  local new_sessions = {}
+  local new_active = data.active or 1
+
+  for _, saved in ipairs(data.sessions) do
+    local local_session = running[saved.session_id]
+    if local_session then
+      local_session.name = saved.name
+      local_session.cwd = saved.cwd
+      table.insert(new_sessions, local_session)
+    else
+      table.insert(new_sessions, {
+        name = saved.name,
+        session_id = saved.session_id,
+        cwd = saved.cwd,
+        bufnr = nil,
+        job_id = nil,
+        is_alive = false,
+        idle_timer = nil,
+        notified_idle = false,
+        init_prompt_sent = true,
+      })
+    end
+    if saved.session_id == current_active_id then
+      new_active = #new_sessions
+    end
+  end
+
+  -- Keep locally running sessions that were deleted on disk
+  for _, s in pairs(running) do
+    local found = false
+    for _, ns in ipairs(new_sessions) do
+      if ns.session_id == s.session_id then
+        found = true
+        break
+      end
+    end
+    if not found then
+      table.insert(new_sessions, s)
+    end
+  end
+
+  state.sessions = new_sessions
+  if #new_sessions == 0 then
+    state.active = 0
+  else
+    state.active = math.min(new_active, #new_sessions)
+  end
+  state.counter = data.counter or #new_sessions
 end
 
 function M.load_state()

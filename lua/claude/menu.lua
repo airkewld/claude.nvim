@@ -147,6 +147,8 @@ function M.open()
     return
   end
 
+  session.refresh_state()
+
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value('bufhidden', 'wipe', { buf = bufnr })
   menu_state.bufnr = bufnr
