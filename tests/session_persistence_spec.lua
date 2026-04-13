@@ -79,6 +79,35 @@ describe('session persistence', function()
     end)
   end)
 
+  describe('cwd tracking', function()
+    it('captures cwd at creation time', function()
+      session = require('claude.session')
+      local s = session.create('test')
+      assert.equals(vim.fn.getcwd(), s.cwd)
+    end)
+
+    it('persists cwd through save and load', function()
+      session = require('claude.session')
+      session.create('test')
+      session.save_state()
+
+      local data = persistence.load()
+      assert.equals(vim.fn.getcwd(), data.sessions[1].cwd)
+    end)
+
+    it('restores cwd on dormant sessions after restart', function()
+      session = require('claude.session')
+      session.create('test')
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      assert.equals(vim.fn.getcwd(), session.list()[1].cwd)
+    end)
+  end)
+
   describe('save_state and load_state', function()
     it('persists session names, ids, active, and counter', function()
       session = require('claude.session')

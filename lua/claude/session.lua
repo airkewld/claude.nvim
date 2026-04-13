@@ -99,6 +99,7 @@ function M.create(name, args)
   local session = {
     name = name,
     session_id = session_id,
+    cwd = vim.fn.getcwd(),
     bufnr = bufnr,
     job_id = job_id,
     is_alive = true,
@@ -257,6 +258,7 @@ function M.save_state()
     table.insert(data.sessions, {
       name = s.name,
       session_id = s.session_id,
+      cwd = s.cwd,
     })
   end
   persistence.save(data)
@@ -270,6 +272,7 @@ function M.load_state()
     table.insert(state.sessions, {
       name = saved.name,
       session_id = saved.session_id,
+      cwd = saved.cwd,
       bufnr = nil,
       job_id = nil,
       is_alive = false,
