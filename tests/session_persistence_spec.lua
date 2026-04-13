@@ -263,7 +263,7 @@ describe('session persistence', function()
       assert.is_true(s.resuming)
     end)
 
-    it('removes session on failed resume (non-zero exit)', function()
+    it('keeps session visible as exited on failed resume', function()
       session = require('claude.session')
       session.create('stale')
       session.save_state()
@@ -277,7 +277,8 @@ describe('session persistence', function()
       local bufnr = s.bufnr
 
       session.on_exit(bufnr, 1)
-      assert.equals(0, session.count())
+      assert.equals(1, session.count())
+      assert.is_false(session.list()[1].is_alive)
     end)
 
     it('does nothing for non-dormant sessions', function()

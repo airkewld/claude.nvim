@@ -211,18 +211,12 @@ function M.on_exit(bufnr, exit_code)
   local resume_failed = session.resuming and exit_code ~= 0
   session.resuming = nil
 
-  if resume_failed then
-    local name = session.name
-    M.remove(index)
-    vim.notify('Session "' .. name .. '" could not be resumed (not found in CLI)', vim.log.levels.WARN)
-    return true
-  end
-
   session.is_alive = false
   stop_idle_timer(session)
 
-  local was_visible = session_visible(session)
-  if not was_visible then
+  if resume_failed then
+    vim.notify('Session "' .. session.name .. '" could not be resumed (not found in CLI)', vim.log.levels.WARN)
+  elseif not session_visible(session) then
     vim.notify('Claude (' .. session.name .. ') session ended', vim.log.levels.INFO)
   end
 
