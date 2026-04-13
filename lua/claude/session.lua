@@ -309,8 +309,10 @@ function M.resume(index)
   s.bufnr = bufnr
   s.job_id = job_id
   s.is_alive = true
+  s.cwd = vim.fn.getcwd()
   s.init_prompt_sent = true
   watch_output(s)
+  M.save_state()
 end
 
 function M.get_winnr()

@@ -229,6 +229,26 @@ describe('session persistence', function()
       assert.truthy(vim.tbl_contains(captured_args, original_id))
     end)
 
+    it('updates cwd to current directory on resume', function()
+      session = require('claude.session')
+      session.create('remote')
+      local s = session.list()[1]
+      s.cwd = '/some/original/dir'
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      assert.equals('/some/original/dir', session.list()[1].cwd)
+
+      session.resume(1)
+
+      assert.equals(vim.fn.getcwd(), session.list()[1].cwd)
+      local data = persistence.load()
+      assert.equals(vim.fn.getcwd(), data.sessions[1].cwd)
+    end)
+
     it('does nothing for non-dormant sessions', function()
       session = require('claude.session')
       local s = session.create('active')
