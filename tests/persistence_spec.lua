@@ -104,14 +104,31 @@ describe('persistence', function()
       assert.is_nil(loaded)
     end)
 
-    it('returns nil on corrupt file', function()
+    it('returns nil on corrupt file without re-migrating', function()
+      -- Write an old per-CWD file that migration would find
+      local old = io.open(tmpdir .. '/-some-project.json', 'w')
+      old:write(vim.fn.json_encode({
+        sessions = { { name = 'old-session', session_id = 'x' } },
+        active = 1,
+        counter = 1,
+      }))
+      old:close()
+
+      -- Write a corrupt sessions.json
       local path = tmpdir .. '/sessions.json'
       local f = io.open(path, 'w')
       f:write('not valid json{{{')
       f:close()
 
+      -- Should return nil, NOT migrate from old files
       local loaded = persistence.load()
       assert.is_nil(loaded)
+
+      -- sessions.json should still be corrupt (not overwritten by migration)
+      local check = io.open(path, 'r')
+      local content = check:read('*a')
+      check:close()
+      assert.equals('not valid json{{{', content)
     end)
 
     it('creates storage directory if it does not exist', function()

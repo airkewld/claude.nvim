@@ -132,21 +132,32 @@ function M.save(data)
   local dir = M.get_storage_dir()
   vim.fn.mkdir(dir, 'p')
   local path = storage_file()
+  local tmp = path .. '.tmp'
   local json = vim.fn.json_encode(data)
-  local f = io.open(path, 'w')
+  local f = io.open(tmp, 'w')
   if not f then
-    vim.notify('claude.nvim: failed to write ' .. path, vim.log.levels.WARN)
+    vim.notify('claude.nvim: failed to write ' .. tmp, vim.log.levels.WARN)
     return
   end
   f:write(json)
   f:close()
+  vim.uv.fs_rename(tmp, path)
 end
 
 function M.load()
   local path = storage_file()
-  local data = load_json(path)
-  if data then return data end
-
+  local f = io.open(path, 'r')
+  if f then
+    local content = f:read('*a')
+    f:close()
+    local ok, data = pcall(vim.fn.json_decode, content)
+    if ok and type(data) == 'table' then
+      return data
+    end
+    -- File exists but is corrupt — don't re-migrate over it
+    return nil
+  end
+  -- File doesn't exist — try one-time migration from old per-CWD files
   return migrate()
 end
 
