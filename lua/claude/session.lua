@@ -378,12 +378,11 @@ function M.resume(index)
   table.insert(args, '--resume')
   table.insert(args, s.session_id)
 
-  local bufnr, job_id = terminal.create(args)
+  local bufnr, job_id = terminal.create(args, { cwd = s.cwd })
   s.bufnr = bufnr
   s.job_id = job_id
   s.is_alive = true
   s.resuming = true
-  s.cwd = vim.fn.getcwd()
   s.init_prompt_sent = true
   watch_output(s)
   M.save_state()

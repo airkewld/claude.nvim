@@ -229,7 +229,7 @@ describe('session persistence', function()
       assert.truthy(vim.tbl_contains(captured_args, original_id))
     end)
 
-    it('updates cwd to current directory on resume', function()
+    it('preserves original cwd on resume for CLI project lookup', function()
       session = require('claude.session')
       session.create('remote')
       local s = session.list()[1]
@@ -244,9 +244,7 @@ describe('session persistence', function()
 
       session.resume(1)
 
-      assert.equals(vim.fn.getcwd(), session.list()[1].cwd)
-      local data = persistence.load()
-      assert.equals(vim.fn.getcwd(), data.sessions[1].cwd)
+      assert.equals('/some/original/dir', session.list()[1].cwd)
     end)
 
     it('sets resuming flag for failed resume detection', function()
