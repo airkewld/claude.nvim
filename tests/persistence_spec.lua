@@ -38,6 +38,31 @@ describe('persistence', function()
     end)
   end)
 
+  describe('decode_path', function()
+    it('reconstructs a simple path with no hyphens', function()
+      local tmproot = vim.fn.tempname()
+      vim.fn.mkdir(tmproot .. '/aaa/bbb/ccc', 'p')
+      local encoded = persistence.encode_path(tmproot .. '/aaa/bbb/ccc')
+      local decoded = persistence.decode_path(encoded)
+      assert.equals(tmproot .. '/aaa/bbb/ccc', decoded)
+      vim.fn.delete(tmproot, 'rf')
+    end)
+
+    it('handles hyphens in directory names', function()
+      local tmproot = vim.fn.tempname()
+      vim.fn.mkdir(tmproot .. '/my-project/src', 'p')
+      local encoded = persistence.encode_path(tmproot .. '/my-project/src')
+      local decoded = persistence.decode_path(encoded)
+      assert.equals(tmproot .. '/my-project/src', decoded)
+      vim.fn.delete(tmproot, 'rf')
+    end)
+
+    it('returns nil when directory does not exist', function()
+      local decoded = persistence.decode_path('-nonexistent-fake-path-xyz')
+      assert.is_nil(decoded)
+    end)
+  end)
+
   describe('get_storage_dir', function()
     it('returns a path under stdpath data', function()
       local dir = persistence.get_storage_dir()
@@ -79,14 +104,31 @@ describe('persistence', function()
       assert.is_nil(loaded)
     end)
 
-    it('returns nil on corrupt file', function()
-      local path = tmpdir .. '/' .. persistence.encode_path(vim.fn.getcwd()) .. '.json'
+    it('returns nil on corrupt file without re-migrating', function()
+      -- Write an old per-CWD file that migration would find
+      local old = io.open(tmpdir .. '/-some-project.json', 'w')
+      old:write(vim.fn.json_encode({
+        sessions = { { name = 'old-session', session_id = 'x' } },
+        active = 1,
+        counter = 1,
+      }))
+      old:close()
+
+      -- Write a corrupt sessions.json
+      local path = tmpdir .. '/sessions.json'
       local f = io.open(path, 'w')
       f:write('not valid json{{{')
       f:close()
 
+      -- Should return nil, NOT migrate from old files
       local loaded = persistence.load()
       assert.is_nil(loaded)
+
+      -- sessions.json should still be corrupt (not overwritten by migration)
+      local check = io.open(path, 'r')
+      local content = check:read('*a')
+      check:close()
+      assert.equals('not valid json{{{', content)
     end)
 
     it('creates storage directory if it does not exist', function()
@@ -99,6 +141,95 @@ describe('persistence', function()
       persistence.save(data)
       local loaded = persistence.load()
       assert.same(data, loaded)
+    end)
+  end)
+
+  describe('migrate', function()
+    local tmpdir
+
+    before_each(function()
+      tmpdir = vim.fn.tempname()
+      vim.fn.mkdir(tmpdir, 'p')
+      persistence._set_storage_dir(tmpdir)
+    end)
+
+    after_each(function()
+      vim.fn.delete(tmpdir, 'rf')
+    end)
+
+    it('merges old per-cwd files into global sessions.json', function()
+      local cwd = vim.fn.getcwd()
+      local encoded = persistence.encode_path(cwd)
+      local old_file = tmpdir .. '/' .. encoded .. '.json'
+      local f = io.open(old_file, 'w')
+      f:write(vim.fn.json_encode({
+        sessions = {
+          { name = 'old-session', session_id = 'abc-123' },
+        },
+        active = 1,
+        counter = 1,
+      }))
+      f:close()
+
+      local data = persistence.load()
+      assert.is_not_nil(data)
+      assert.equals(1, #data.sessions)
+      assert.equals('old-session', data.sessions[1].name)
+      assert.equals('abc-123', data.sessions[1].session_id)
+      assert.equals(cwd, data.sessions[1].cwd)
+    end)
+
+    it('merges sessions from multiple old files', function()
+      local cwd = vim.fn.getcwd()
+      local encoded1 = persistence.encode_path(cwd)
+      local f1 = io.open(tmpdir .. '/' .. encoded1 .. '.json', 'w')
+      f1:write(vim.fn.json_encode({
+        sessions = { { name = 'proj1-session', session_id = 'id-1' } },
+        active = 1,
+        counter = 1,
+      }))
+      f1:close()
+
+      local f2 = io.open(tmpdir .. '/-fake-other-project.json', 'w')
+      f2:write(vim.fn.json_encode({
+        sessions = { { name = 'proj2-session', session_id = 'id-2' } },
+        active = 1,
+        counter = 1,
+      }))
+      f2:close()
+
+      local data = persistence.load()
+      assert.is_not_nil(data)
+      assert.equals(2, #data.sessions)
+    end)
+
+    it('skips corrupt old files during migration', function()
+      local f = io.open(tmpdir .. '/-some-project.json', 'w')
+      f:write('not valid json{{{')
+      f:close()
+
+      local data = persistence.load()
+      assert.is_nil(data)
+    end)
+
+    it('does not re-migrate once sessions.json exists', function()
+      local f = io.open(tmpdir .. '/-old-project.json', 'w')
+      f:write(vim.fn.json_encode({
+        sessions = { { name = 'should-not-appear', session_id = 'x' } },
+        active = 1,
+        counter = 1,
+      }))
+      f:close()
+
+      persistence.save({
+        sessions = { { name = 'current', session_id = 'y' } },
+        active = 1,
+        counter = 1,
+      })
+
+      local data = persistence.load()
+      assert.equals(1, #data.sessions)
+      assert.equals('current', data.sessions[1].name)
     end)
   end)
 end)

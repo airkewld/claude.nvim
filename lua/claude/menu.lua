@@ -6,6 +6,15 @@ local config = require('claude.config')
 
 local M = {}
 
+local function shorten_path(path)
+  if not path then return '' end
+  local home = vim.env.HOME or ''
+  if home ~= '' and path:sub(1, #home) == home then
+    path = '~' .. path:sub(#home + 1)
+  end
+  return path
+end
+
 local menu_state = {
   bufnr = nil,
   winnr = nil,
@@ -46,7 +55,8 @@ function M.render()
       else
         status = '[exited]'
       end
-      table.insert(lines, string.format('%s %d  %-20s %s', marker, i, s.name, status))
+      local cwd_display = shorten_path(s.cwd)
+      table.insert(lines, string.format('%s %d  %-20s %-30s %s', marker, i, s.name, cwd_display, status))
     end
   end
 
@@ -136,6 +146,8 @@ function M.open()
     M.close()
     return
   end
+
+  session.refresh_state()
 
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value('bufhidden', 'wipe', { buf = bufnr })

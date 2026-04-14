@@ -3,7 +3,8 @@
 
 local M = {}
 
-function M.create(args)
+function M.create(args, opts)
+  opts = opts or {}
   local cmd = 'claude'
   if args and #args > 0 then
     cmd = cmd .. ' ' .. table.concat(args, ' ')
@@ -13,11 +14,18 @@ function M.create(args)
   vim.api.nvim_set_option_value('bufhidden', 'hide', { buf = bufnr })
 
   vim.api.nvim_buf_call(bufnr, function()
-    local job_id = vim.fn.termopen(cmd, {
+    local ei = vim.o.eventignore
+    vim.o.eventignore = 'BufFilePost'
+    local term_opts = {
       on_exit = function(_, exit_code)
         vim.api.nvim_exec_autocmds('User', { pattern = 'ClaudeExit', data = { bufnr = bufnr, exit_code = exit_code } })
       end,
-    })
+    }
+    if opts.cwd then
+      term_opts.cwd = opts.cwd
+    end
+    local job_id = vim.fn.termopen(cmd, term_opts)
+    vim.o.eventignore = ei
     vim.b[bufnr].claude_job_id = job_id
   end)
 

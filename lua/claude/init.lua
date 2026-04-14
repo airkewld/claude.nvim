@@ -215,10 +215,7 @@ function M.setup(opts)
       local bufnr = ev.data and ev.data.bufnr
       local exit_code = ev.data and ev.data.exit_code or 0
       if bufnr then
-        local resume_failed = session.on_exit(bufnr, exit_code)
-        if resume_failed then
-          hide()
-        end
+        session.on_exit(bufnr, exit_code)
       end
     end,
   })

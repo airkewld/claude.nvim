@@ -79,6 +79,35 @@ describe('session persistence', function()
     end)
   end)
 
+  describe('cwd tracking', function()
+    it('captures cwd at creation time', function()
+      session = require('claude.session')
+      local s = session.create('test')
+      assert.equals(vim.fn.getcwd(), s.cwd)
+    end)
+
+    it('persists cwd through save and load', function()
+      session = require('claude.session')
+      session.create('test')
+      session.save_state()
+
+      local data = persistence.load()
+      assert.equals(vim.fn.getcwd(), data.sessions[1].cwd)
+    end)
+
+    it('restores cwd on dormant sessions after restart', function()
+      session = require('claude.session')
+      session.create('test')
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      assert.equals(vim.fn.getcwd(), session.list()[1].cwd)
+    end)
+  end)
+
   describe('save_state and load_state', function()
     it('persists session names, ids, active, and counter', function()
       session = require('claude.session')
@@ -200,6 +229,56 @@ describe('session persistence', function()
       assert.truthy(vim.tbl_contains(captured_args, original_id))
     end)
 
+    it('preserves original cwd on resume for CLI project lookup', function()
+      session = require('claude.session')
+      session.create('remote')
+      local s = session.list()[1]
+      s.cwd = '/some/original/dir'
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      assert.equals('/some/original/dir', session.list()[1].cwd)
+
+      session.resume(1)
+
+      assert.equals('/some/original/dir', session.list()[1].cwd)
+    end)
+
+    it('sets resuming flag for failed resume detection', function()
+      session = require('claude.session')
+      session.create('stale')
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      session.resume(1)
+      local s = session.list()[1]
+      assert.is_true(s.resuming)
+    end)
+
+    it('keeps session visible as exited on failed resume', function()
+      session = require('claude.session')
+      session.create('stale')
+      session.save_state()
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+
+      session.resume(1)
+      local s = session.list()[1]
+      local bufnr = s.bufnr
+
+      session.on_exit(bufnr, 1)
+      assert.equals(1, session.count())
+      assert.is_false(session.list()[1].is_alive)
+    end)
+
     it('does nothing for non-dormant sessions', function()
       session = require('claude.session')
       local s = session.create('active')
@@ -227,6 +306,81 @@ describe('session persistence', function()
       -- Verify auto-save after remove
       local data = persistence.load()
       assert.equals(0, #data.sessions)
+    end)
+  end)
+
+  describe('cross-instance visibility', function()
+    it('refresh_state picks up sessions written to disk by another instance', function()
+      session = require('claude.session')
+      session.create('local-session')
+
+      -- Simulate another instance writing a new session to disk
+      persistence.save({
+        sessions = {
+          { name = 'local-session', session_id = session.list()[1].session_id, cwd = vim.fn.getcwd() },
+          { name = 'remote-session', session_id = 'remote-uuid-123', cwd = '/other/project' },
+        },
+        active = 1,
+        counter = 2,
+      })
+
+      session.refresh_state()
+
+      assert.equals(2, session.count())
+      assert.equals('local-session', session.list()[1].name)
+      assert.equals('remote-session', session.list()[2].name)
+    end)
+
+    it('refresh_state preserves runtime state of locally running sessions', function()
+      session = require('claude.session')
+      local s = session.create('running')
+      local original_bufnr = s.bufnr
+      local original_job_id = s.job_id
+
+      -- Simulate another instance adding a session to disk
+      persistence.save({
+        sessions = {
+          { name = 'running', session_id = s.session_id, cwd = vim.fn.getcwd() },
+          { name = 'other', session_id = 'other-uuid', cwd = '/somewhere' },
+        },
+        active = 1,
+        counter = 2,
+      })
+
+      session.refresh_state()
+
+      local refreshed = session.list()[1]
+      assert.equals(original_bufnr, refreshed.bufnr)
+      assert.equals(original_job_id, refreshed.job_id)
+      assert.is_true(refreshed.is_alive)
+    end)
+
+    it('save_state merges with sessions from other instances', function()
+      session = require('claude.session')
+      session.create('mine')
+
+      -- Another instance wrote a session to disk
+      local my_id = session.list()[1].session_id
+      persistence.save({
+        sessions = {
+          { name = 'mine', session_id = my_id, cwd = vim.fn.getcwd() },
+          { name = 'theirs', session_id = 'their-uuid', cwd = '/their/project' },
+        },
+        active = 1,
+        counter = 2,
+      })
+
+      -- Local save should not overwrite the other instance's session
+      session.save_state()
+      local data = persistence.load()
+      assert.equals(2, #data.sessions)
+
+      local names = {}
+      for _, s in ipairs(data.sessions) do
+        names[s.name] = true
+      end
+      assert.is_true(names['mine'])
+      assert.is_true(names['theirs'])
     end)
   end)
 end)

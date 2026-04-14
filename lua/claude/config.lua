@@ -19,7 +19,7 @@ local defaults = {
     border = 'rounded',
   },
   menu = {
-    width = 0.5,
+    width = 0.6,
     border = 'rounded',
   },
   keymaps = {
