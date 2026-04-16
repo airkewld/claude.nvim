@@ -56,8 +56,13 @@ function M.switch_to_active()
 
   local winnr = session.get_winnr()
   if winnr and vim.api.nvim_win_is_valid(winnr) then
+    local focused = vim.api.nvim_get_current_win() == winnr
+    local mode = vim.api.nvim_get_mode().mode
+    local in_review = mode == 'n' or mode == 'nt'
     vim.api.nvim_win_set_buf(winnr, s.bufnr)
-    vim.cmd('startinsert')
+    if not (focused and in_review) then
+      vim.cmd('startinsert')
+    end
     update_title()
   else
     show(s)
@@ -130,6 +135,11 @@ local function send_to_session(opts)
   end
 end
 
+local function cycle(dir)
+  session[dir]()
+  M.switch_to_active()
+end
+
 local subcommands = {
   new = function(args)
     local name = args[1]
@@ -140,14 +150,8 @@ local subcommands = {
   sessions = function()
     menu.open()
   end,
-  next = function()
-    session.next()
-    if win_visible() then M.switch_to_active() end
-  end,
-  prev = function()
-    session.prev()
-    if win_visible() then M.switch_to_active() end
-  end,
+  next = function() cycle('next') end,
+  prev = function() cycle('prev') end,
 }
 
 function M.setup(opts)
@@ -160,6 +164,8 @@ function M.setup(opts)
   end
   map(keys.toggle, toggle, 'Toggle Claude Code')
   map(keys.sessions, menu.open, 'Claude sessions menu')
+  map(keys.next, function() cycle('next') end, 'Next Claude session')
+  map(keys.prev, function() cycle('prev') end, 'Previous Claude session')
 
   vim.api.nvim_create_user_command('Claude', function(cmd)
     local args = cmd.fargs
@@ -248,8 +254,41 @@ function M.setup(opts)
     end,
   })
 
+  local on_key_ns = vim.api.nvim_create_namespace('claude_auto_review')
+  vim.on_key(function()
+    if vim.api.nvim_get_mode().mode ~= 't' then return end
+    local _, s = session.find_by_bufnr(vim.api.nvim_get_current_buf())
+    if s then session.mark_input(s) end
+  end, on_key_ns)
+
+  local auto_review_timer = nil
+  local function check_auto_review()
+    local s = session.get_active()
+    if not s or not s.is_alive then return end
+    local winnr = session.get_winnr()
+    if not (winnr and vim.api.nvim_win_is_valid(winnr)) then return end
+    if vim.api.nvim_get_current_win() ~= winnr then return end
+    if vim.api.nvim_get_mode().mode ~= 't' then return end
+    local threshold = config.get().auto_review_timeout_ms
+    if session.is_idle(s, vim.uv.now(), threshold) then
+      vim.cmd('stopinsert')
+      session.mark_input(s)
+    end
+  end
+
+  local threshold = config.get().auto_review_timeout_ms
+  if threshold and threshold > 0 then
+    auto_review_timer = vim.uv.new_timer()
+    auto_review_timer:start(60000, 60000, vim.schedule_wrap(check_auto_review))
+  end
+
   vim.api.nvim_create_autocmd('VimLeavePre', {
     callback = function()
+      if auto_review_timer then
+        auto_review_timer:stop()
+        auto_review_timer:close()
+        auto_review_timer = nil
+      end
       session.save_state()
     end,
   })
