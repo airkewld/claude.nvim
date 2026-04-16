@@ -56,9 +56,10 @@ function M.switch_to_active()
 
   local winnr = session.get_winnr()
   if winnr and vim.api.nvim_win_is_valid(winnr) then
-    vim.api.nvim_win_set_buf(winnr, s.bufnr)
     local focused = vim.api.nvim_get_current_win() == winnr
-    local in_review = vim.api.nvim_get_mode().mode == 'n'
+    local mode = vim.api.nvim_get_mode().mode
+    local in_review = mode == 'n' or mode == 'nt'
+    vim.api.nvim_win_set_buf(winnr, s.bufnr)
     if not (focused and in_review) then
       vim.cmd('startinsert')
     end
