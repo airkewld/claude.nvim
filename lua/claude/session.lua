@@ -53,6 +53,7 @@ local function watch_output(session)
     on_lines = function()
       if not session.is_alive then return true end
       session.notified_idle = false
+      M.mark_activity(session)
       stop_idle_timer(session)
       session.idle_timer = vim.uv.new_timer()
       session.idle_timer:start(config.get().idle_timeout_ms, 0, vim.schedule_wrap(function()
@@ -60,6 +61,10 @@ local function watch_output(session)
       end))
     end,
   })
+end
+
+function M.mark_activity(session)
+  session.last_activity_at = os.time()
 end
 
 function M.create(name, args)
@@ -108,6 +113,7 @@ function M.create(name, args)
     notified_idle = false,
     init_prompt_sent = false,
     last_input_at = vim.uv.now(),
+    last_activity_at = os.time(),
   }
 
   table.insert(state.sessions, session)
@@ -201,6 +207,7 @@ end
 
 function M.mark_input(session)
   session.last_input_at = vim.uv.now()
+  M.mark_activity(session)
 end
 
 function M.is_idle(session, now, threshold)
@@ -260,7 +267,12 @@ function M.save_state()
   local local_ids = {}
   local local_sessions = {}
   for _, s in ipairs(state.sessions) do
-    local entry = { name = s.name, session_id = s.session_id, cwd = s.cwd }
+    local entry = {
+      name = s.name,
+      session_id = s.session_id,
+      cwd = s.cwd,
+      last_activity_at = s.last_activity_at,
+    }
     table.insert(local_sessions, entry)
     local_ids[s.session_id] = true
   end
@@ -270,7 +282,12 @@ function M.save_state()
   if disk and disk.sessions then
     for _, s in ipairs(disk.sessions) do
       if not local_ids[s.session_id] and not state.deleted_ids[s.session_id] then
-        table.insert(local_sessions, { name = s.name, session_id = s.session_id, cwd = s.cwd })
+        table.insert(local_sessions, {
+          name = s.name,
+          session_id = s.session_id,
+          cwd = s.cwd,
+          last_activity_at = s.last_activity_at,
+        })
       end
     end
   end
@@ -318,6 +335,7 @@ function M.refresh_state()
         idle_timer = nil,
         notified_idle = false,
         init_prompt_sent = true,
+        last_activity_at = saved.last_activity_at or os.time(),
       })
     end
     if saved.session_id == current_active_id then
@@ -363,6 +381,7 @@ function M.load_state()
       idle_timer = nil,
       notified_idle = false,
       init_prompt_sent = true,
+      last_activity_at = saved.last_activity_at or os.time(),
     })
   end
 
@@ -396,6 +415,7 @@ function M.resume(index)
   s.resuming = true
   s.init_prompt_sent = true
   s.last_input_at = vim.uv.now()
+  s.last_activity_at = os.time()
   watch_output(s)
   M.save_state()
 end
