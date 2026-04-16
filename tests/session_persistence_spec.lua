@@ -309,6 +309,76 @@ describe('session persistence', function()
     end)
   end)
 
+  describe('last_activity_at', function()
+    it('create sets last_activity_at to a recent unix timestamp', function()
+      session = require('claude.session')
+      local before = os.time()
+      local s = session.create('test')
+      local after = os.time()
+      assert.is_number(s.last_activity_at)
+      assert.is_true(s.last_activity_at >= before)
+      assert.is_true(s.last_activity_at <= after)
+    end)
+
+    it('mark_activity updates last_activity_at', function()
+      session = require('claude.session')
+      local s = session.create('test')
+      s.last_activity_at = 0
+      session.mark_activity(s)
+      assert.is_true(s.last_activity_at > 0)
+      assert.is_true(math.abs(s.last_activity_at - os.time()) <= 2)
+    end)
+
+    it('save_state writes last_activity_at; load_state restores it', function()
+      session = require('claude.session')
+      local s = session.create('test')
+      s.last_activity_at = 1234567890
+      session.save_state()
+
+      local data = persistence.load()
+      assert.equals(1234567890, data.sessions[1].last_activity_at)
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      session.load_state()
+      assert.equals(1234567890, session.list()[1].last_activity_at)
+    end)
+
+    it('refresh_state preserves last_activity_at for dormant sessions', function()
+      session = require('claude.session')
+      persistence.save({
+        sessions = {
+          { name = 'remote', session_id = 'remote-uuid', cwd = '/x', last_activity_at = 1700000000 },
+        },
+        active = 1,
+        counter = 1,
+      })
+      session.refresh_state()
+      assert.equals(1700000000, session.list()[1].last_activity_at)
+    end)
+
+    it('load_state falls back to os.time() when last_activity_at missing on disk', function()
+      session = require('claude.session')
+      persistence.save({
+        sessions = {
+          { name = 'old', session_id = 'old-uuid', cwd = '/x' },
+        },
+        active = 1,
+        counter = 1,
+      })
+
+      package.loaded['claude.session'] = nil
+      session = require('claude.session')
+      local before = os.time()
+      session.load_state()
+      local after = os.time()
+
+      local ts = session.list()[1].last_activity_at
+      assert.is_number(ts)
+      assert.is_true(ts >= before and ts <= after)
+    end)
+  end)
+
   describe('cross-instance visibility', function()
     it('refresh_state picks up sessions written to disk by another instance', function()
       session = require('claude.session')

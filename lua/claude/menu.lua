@@ -15,6 +15,77 @@ local function shorten_path(path)
   return path
 end
 
+local function format_activity(ts, now)
+  if not ts then return '' end
+  local today = os.date('*t', now)
+  local d = os.date('*t', ts)
+  if d.year == today.year and d.yday == today.yday then
+    return os.date('%H:%M', ts)
+  end
+  return os.date('%b %d', ts)
+end
+
+local function status_for(s)
+  if session.is_dormant(s) then return '[saved]' end
+  if s.is_alive then return '[running]' end
+  return '[exited]'
+end
+
+local function pad_right(str, width)
+  local n = #str
+  if n >= width then return str end
+  return str .. string.rep(' ', width - n)
+end
+
+local function pad_left(str, width)
+  local n = #str
+  if n >= width then return str end
+  return string.rep(' ', width - n) .. str
+end
+
+local function build_rows(sessions, active, now)
+  local count = #sessions
+  local index_width = #tostring(count)
+
+  local cells = {}
+  local name_width, cwd_width, status_width = 0, 0, 0
+  for i, s in ipairs(sessions) do
+    local row = {
+      marker = i == active and '>' or ' ',
+      index = tostring(i),
+      name = s.name or '',
+      cwd = shorten_path(s.cwd),
+      status = status_for(s),
+      activity = format_activity(s.last_activity_at, now),
+    }
+    cells[i] = row
+    if #row.name > name_width then name_width = #row.name end
+    if #row.cwd > cwd_width then cwd_width = #row.cwd end
+    if #row.status > status_width then status_width = #row.status end
+  end
+
+  local lines = {}
+  for i, row in ipairs(cells) do
+    lines[i] = table.concat({
+      row.marker,
+      ' ',
+      pad_left(row.index, index_width),
+      '  ',
+      pad_right(row.name, name_width),
+      '  ',
+      pad_right(row.cwd, cwd_width),
+      '  ',
+      pad_right(row.status, status_width),
+      '  ',
+      row.activity,
+    })
+  end
+  return lines
+end
+
+M._format_activity = format_activity
+M._build_rows = build_rows
+
 local menu_state = {
   bufnr = nil,
   winnr = nil,
@@ -39,25 +110,12 @@ function M.render()
   if not menu_state.bufnr then return end
 
   local sessions = session.list()
-  local active = session.active_index()
-  local lines = {}
+  local lines
 
   if #sessions == 0 then
-    table.insert(lines, '  (no sessions)')
+    lines = { '  (no sessions)' }
   else
-    for i, s in ipairs(sessions) do
-      local marker = i == active and '>' or ' '
-      local status
-      if session.is_dormant(s) then
-        status = '[saved]'
-      elseif s.is_alive then
-        status = '[running]'
-      else
-        status = '[exited]'
-      end
-      local cwd_display = shorten_path(s.cwd)
-      table.insert(lines, string.format('%s %d  %-20s %-30s %s', marker, i, s.name, cwd_display, status))
-    end
+    lines = build_rows(sessions, session.active_index(), os.time())
   end
 
   vim.api.nvim_set_option_value('modifiable', true, { buf = menu_state.bufnr })
