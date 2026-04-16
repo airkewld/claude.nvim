@@ -107,6 +107,7 @@ function M.create(name, args)
     idle_timer = nil,
     notified_idle = false,
     init_prompt_sent = false,
+    last_input_at = vim.uv.now(),
   }
 
   table.insert(state.sessions, session)
@@ -196,6 +197,16 @@ function M.rename(index, new_name)
   s.name = new_name
   M.save_state()
   return true
+end
+
+function M.mark_input(session)
+  session.last_input_at = vim.uv.now()
+end
+
+function M.is_idle(session, now, threshold)
+  if not threshold or threshold <= 0 then return false end
+  if not session.last_input_at then return false end
+  return (now - session.last_input_at) >= threshold
 end
 
 function M.find_by_bufnr(bufnr)
@@ -384,6 +395,7 @@ function M.resume(index)
   s.is_alive = true
   s.resuming = true
   s.init_prompt_sent = true
+  s.last_input_at = vim.uv.now()
   watch_output(s)
   M.save_state()
 end

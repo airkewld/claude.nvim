@@ -253,8 +253,41 @@ function M.setup(opts)
     end,
   })
 
+  local on_key_ns = vim.api.nvim_create_namespace('claude_auto_review')
+  vim.on_key(function()
+    if vim.api.nvim_get_mode().mode ~= 't' then return end
+    local _, s = session.find_by_bufnr(vim.api.nvim_get_current_buf())
+    if s then session.mark_input(s) end
+  end, on_key_ns)
+
+  local auto_review_timer = nil
+  local function check_auto_review()
+    local s = session.get_active()
+    if not s or not s.is_alive then return end
+    local winnr = session.get_winnr()
+    if not (winnr and vim.api.nvim_win_is_valid(winnr)) then return end
+    if vim.api.nvim_get_current_win() ~= winnr then return end
+    if vim.api.nvim_get_mode().mode ~= 't' then return end
+    local threshold = config.get().auto_review_timeout_ms
+    if session.is_idle(s, vim.uv.now(), threshold) then
+      vim.cmd('stopinsert')
+      session.mark_input(s)
+    end
+  end
+
+  local threshold = config.get().auto_review_timeout_ms
+  if threshold and threshold > 0 then
+    auto_review_timer = vim.uv.new_timer()
+    auto_review_timer:start(60000, 60000, vim.schedule_wrap(check_auto_review))
+  end
+
   vim.api.nvim_create_autocmd('VimLeavePre', {
     callback = function()
+      if auto_review_timer then
+        auto_review_timer:stop()
+        auto_review_timer:close()
+        auto_review_timer = nil
+      end
       session.save_state()
     end,
   })

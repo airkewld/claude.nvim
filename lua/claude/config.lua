@@ -12,6 +12,7 @@ local defaults = {
     { '.claude/CLAUDE.md', 'Local rules (.claude/CLAUDE.md)' },
   },
   idle_timeout_ms = 3000,
+  auto_review_timeout_ms = 600000,
   auto_remove_exited = false,
   window = {
     width = 0.8,
