@@ -25,6 +25,8 @@ local defaults = {
   keymaps = {
     toggle = '<leader>cl',
     sessions = '<leader>cs',
+    next = '<leader>cj',
+    prev = '<leader>ck',
   },
 }
 

@@ -130,6 +130,11 @@ local function send_to_session(opts)
   end
 end
 
+local function cycle(dir)
+  session[dir]()
+  M.switch_to_active()
+end
+
 local subcommands = {
   new = function(args)
     local name = args[1]
@@ -140,14 +145,8 @@ local subcommands = {
   sessions = function()
     menu.open()
   end,
-  next = function()
-    session.next()
-    if win_visible() then M.switch_to_active() end
-  end,
-  prev = function()
-    session.prev()
-    if win_visible() then M.switch_to_active() end
-  end,
+  next = function() cycle('next') end,
+  prev = function() cycle('prev') end,
 }
 
 function M.setup(opts)
@@ -160,6 +159,8 @@ function M.setup(opts)
   end
   map(keys.toggle, toggle, 'Toggle Claude Code')
   map(keys.sessions, menu.open, 'Claude sessions menu')
+  map(keys.next, function() cycle('next') end, 'Next Claude session')
+  map(keys.prev, function() cycle('prev') end, 'Previous Claude session')
 
   vim.api.nvim_create_user_command('Claude', function(cmd)
     local args = cmd.fargs
