@@ -6,6 +6,8 @@ Neovim plugin for running multiple Claude Code sessions in floating terminal win
 
 - **Multiple named sessions** running simultaneously in hidden terminal buffers
 - **Harpoon-style session menu** for browsing, selecting, creating, renaming, reordering, and deleting sessions
+- **Cycle between sessions** with a single keybinding — jump to next/prev even when the Claude window is hidden
+- **Auto review mode** drops idle sessions out of terminal-insert so you can scroll/cycle without fighting Esc
 - **Idle detection** notifies you when a background session is waiting for input
 - **Interactive/Review mode indicator** in the window title reflects whether you're typing or reading
 - **Send context** from your current buffer or visual selection directly into a session
@@ -78,6 +80,7 @@ require('claude').setup({
     { '.claude/CLAUDE.md', 'Local rules (.claude/CLAUDE.md)' },
   },
   idle_timeout_ms = 3000,       -- ms before "waiting for input" notification
+  auto_review_timeout_ms = 600000, -- ms of user idleness before auto-switching to review mode (false to disable)
   auto_remove_exited = false,   -- automatically remove sessions after process exits
   window = {
     width = 0.8,                -- fraction of editor width
@@ -91,6 +94,8 @@ require('claude').setup({
   keymaps = {
     toggle = '<leader>cl',      -- toggle active session window
     sessions = '<leader>cs',    -- open sessions menu
+    next = '<leader>cj',        -- cycle to next session (shows it even if window is hidden)
+    prev = '<leader>ck',        -- cycle to previous session
   },
 })
 ```
@@ -103,6 +108,8 @@ Set any keymap to `false` to disable it.
 |-----|------|--------|
 | `<leader>cl` | normal | Toggle active session (creates one if none exist) |
 | `<leader>cs` | normal | Open sessions menu |
+| `<leader>cj` | normal | Cycle to next session (shows it even if window is hidden) |
+| `<leader>ck` | normal | Cycle to previous session |
 | `<Esc>` | terminal | Exit terminal mode (enter normal mode in the float) |
 | `<Esc>` | normal (in float) | Hide the floating window |
 
@@ -179,6 +186,14 @@ Claude (my-session) is waiting for input
 ```
 
 This only fires for sessions that aren't currently visible. Bringing the session into view resets the idle timer.
+
+## Auto Review Mode
+
+If you haven't typed into the visible Claude session for `auto_review_timeout_ms` (default 10 minutes), the plugin will drop the window out of terminal-insert into review (normal) mode. You can then scroll, cycle with `<leader>cj`/`<leader>ck`, or close the window without needing `<C-\><C-n>` first.
+
+The timer tracks keypresses sent to Claude; any key resets it. Works even when Neovim is in a background tmux window.
+
+Set `auto_review_timeout_ms = false` (or `0`) to disable.
 
 ## Rule Enforcement
 
