@@ -48,12 +48,6 @@ function M.switch_to_active()
   local s = session.get_active()
   if not s then return end
 
-  if session.is_dormant(s) then
-    session.resume(session.active_index())
-    s = session.get_active()
-    if not s then return end
-  end
-
   local winnr = session.get_winnr()
   if winnr and vim.api.nvim_win_is_valid(winnr) then
     local focused = vim.api.nvim_get_current_win() == winnr
@@ -78,14 +72,6 @@ local function toggle()
 
   if not s then
     session.create()
-    s = session.get_active()
-    if not s then return end
-    show(s)
-    return
-  end
-
-  if session.is_dormant(s) then
-    session.resume(session.active_index())
     s = session.get_active()
     if not s then return end
     show(s)
@@ -156,7 +142,6 @@ local subcommands = {
 
 function M.setup(opts)
   config.setup(opts)
-  session.load_state()
   local keys = config.get().keymaps
 
   local function map(key, fn, desc)
@@ -289,7 +274,6 @@ function M.setup(opts)
         auto_review_timer:close()
         auto_review_timer = nil
       end
-      session.save_state()
     end,
   })
 end
