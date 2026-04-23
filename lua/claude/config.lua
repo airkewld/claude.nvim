@@ -5,7 +5,7 @@ local M = {}
 
 local defaults = {
   cli_args = { '--permission-mode', 'plan' },
-  enforce_claude_md = true,
+  enforce_claude_md = false,
   claude_md_paths = {
     { '~/.claude/CLAUDE.md', 'Global rules (~/.claude/CLAUDE.md)' },
     { 'CLAUDE.md', 'Local rules (CLAUDE.md)' },
@@ -13,7 +13,7 @@ local defaults = {
   },
   idle_timeout_ms = 3000,
   auto_review_timeout_ms = 600000,
-  auto_remove_exited = false,
+  auto_remove_exited = true,
   window = {
     width = 0.8,
     height = 0.8,

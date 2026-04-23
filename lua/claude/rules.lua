@@ -27,9 +27,7 @@ function M.build_init_prompt(paths)
 
   if #refs == 0 then return nil end
 
-  return 'IMPORTANT: You MUST read and follow ALL rules in the files referenced below. '
-    .. 'Confirm you have read them, then wait for instructions.\n\n'
-    .. table.concat(refs, '\n')
+  return table.concat(refs, '\n')
 end
 
 return M

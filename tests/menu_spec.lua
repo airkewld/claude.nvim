@@ -12,7 +12,6 @@ describe('menu', function()
     package.loaded['claude.session'] = {
       list = function() return {} end,
       active_index = function() return 0 end,
-      is_dormant = function(s) return s.bufnr == nil end,
     }
 
     require('claude.config').setup({})

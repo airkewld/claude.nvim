@@ -4,7 +4,6 @@
 local terminal = require('claude.terminal')
 local config = require('claude.config')
 local rules = require('claude.rules')
-local persistence = require('claude.persistence')
 
 local M = {}
 
@@ -13,7 +12,6 @@ local state = {
   active = 0,
   winnr = nil,
   counter = 0,
-  deleted_ids = {},
 }
 
 local function stop_idle_timer(session)
@@ -96,16 +94,11 @@ function M.create(name, args)
     args = merged
   end
 
-  local session_id = persistence.generate_session_id()
   if not args then args = {} end
-  table.insert(args, '--session-id')
-  table.insert(args, session_id)
 
   local bufnr, job_id = terminal.create(args)
   local session = {
     name = name,
-    session_id = session_id,
-    cwd = vim.fn.getcwd(),
     bufnr = bufnr,
     job_id = job_id,
     is_alive = true,
@@ -119,15 +112,12 @@ function M.create(name, args)
   table.insert(state.sessions, session)
   state.active = #state.sessions
   watch_output(session)
-  M.save_state()
   return session
 end
 
 function M.remove(index)
   local session = state.sessions[index]
   if not session then return end
-
-  state.deleted_ids[session.session_id] = true
 
   stop_idle_timer(session)
   if session.bufnr and vim.api.nvim_buf_is_valid(session.bufnr) then
@@ -143,8 +133,6 @@ function M.remove(index)
   elseif state.active > index then
     state.active = state.active - 1
   end
-
-  M.save_state()
 end
 
 function M.get_active()
@@ -187,7 +175,6 @@ function M.swap(i, j)
   elseif state.active == j then
     state.active = i
   end
-  M.save_state()
   return true
 end
 
@@ -201,7 +188,6 @@ function M.rename(index, new_name)
     end
   end
   s.name = new_name
-  M.save_state()
   return true
 end
 
@@ -229,15 +215,10 @@ function M.on_exit(bufnr, exit_code)
   local index, session = M.find_by_bufnr(bufnr)
   if not session then return end
 
-  local resume_failed = session.resuming and exit_code ~= 0
-  session.resuming = nil
-
   session.is_alive = false
   stop_idle_timer(session)
 
-  if resume_failed then
-    vim.notify('Session "' .. session.name .. '" could not be resumed (not found in CLI)', vim.log.levels.WARN)
-  elseif not session_visible(session) then
+  if not session_visible(session) then
     vim.notify('Claude (' .. session.name .. ') session ended', vim.log.levels.INFO)
   end
 
@@ -257,167 +238,6 @@ function M.statusline()
     return 'Claude: ' .. s.name
   end
   return string.format('Claude: %s [%d/%d]', s.name, state.active, #state.sessions)
-end
-
-function M.is_dormant(s)
-  return s.bufnr == nil
-end
-
-function M.save_state()
-  local local_ids = {}
-  local local_sessions = {}
-  for _, s in ipairs(state.sessions) do
-    local entry = {
-      name = s.name,
-      session_id = s.session_id,
-      cwd = s.cwd,
-      last_activity_at = s.last_activity_at,
-    }
-    table.insert(local_sessions, entry)
-    local_ids[s.session_id] = true
-  end
-
-  -- Merge sessions from disk that this instance doesn't know about
-  local disk = persistence.load()
-  if disk and disk.sessions then
-    for _, s in ipairs(disk.sessions) do
-      if not local_ids[s.session_id] and not state.deleted_ids[s.session_id] then
-        table.insert(local_sessions, {
-          name = s.name,
-          session_id = s.session_id,
-          cwd = s.cwd,
-          last_activity_at = s.last_activity_at,
-        })
-      end
-    end
-  end
-
-  persistence.save({
-    sessions = local_sessions,
-    active = state.active,
-    counter = state.counter,
-  })
-end
-
-function M.refresh_state()
-  local data = persistence.load()
-  if not data or not data.sessions then return end
-
-  local running = {}
-  for _, s in ipairs(state.sessions) do
-    if s.bufnr then
-      running[s.session_id] = s
-    end
-  end
-
-  local current_active_id = nil
-  if state.active >= 1 and state.active <= #state.sessions then
-    current_active_id = state.sessions[state.active].session_id
-  end
-
-  local new_sessions = {}
-  local new_active = data.active or 1
-
-  for _, saved in ipairs(data.sessions) do
-    local local_session = running[saved.session_id]
-    if local_session then
-      local_session.name = saved.name
-      local_session.cwd = saved.cwd
-      table.insert(new_sessions, local_session)
-    else
-      table.insert(new_sessions, {
-        name = saved.name,
-        session_id = saved.session_id,
-        cwd = saved.cwd,
-        bufnr = nil,
-        job_id = nil,
-        is_alive = false,
-        idle_timer = nil,
-        notified_idle = false,
-        init_prompt_sent = true,
-        last_activity_at = saved.last_activity_at or os.time(),
-      })
-    end
-    if saved.session_id == current_active_id then
-      new_active = #new_sessions
-    end
-  end
-
-  -- Keep locally running sessions that were deleted on disk
-  for _, s in pairs(running) do
-    local found = false
-    for _, ns in ipairs(new_sessions) do
-      if ns.session_id == s.session_id then
-        found = true
-        break
-      end
-    end
-    if not found then
-      table.insert(new_sessions, s)
-    end
-  end
-
-  state.sessions = new_sessions
-  if #new_sessions == 0 then
-    state.active = 0
-  else
-    state.active = math.min(new_active, #new_sessions)
-  end
-  state.counter = data.counter or #new_sessions
-end
-
-function M.load_state()
-  local data = persistence.load()
-  if not data or not data.sessions or #data.sessions == 0 then return end
-
-  for _, saved in ipairs(data.sessions) do
-    table.insert(state.sessions, {
-      name = saved.name,
-      session_id = saved.session_id,
-      cwd = saved.cwd,
-      bufnr = nil,
-      job_id = nil,
-      is_alive = false,
-      idle_timer = nil,
-      notified_idle = false,
-      init_prompt_sent = true,
-      last_activity_at = saved.last_activity_at or os.time(),
-    })
-  end
-
-  state.active = data.active or 1
-  state.counter = data.counter or #state.sessions
-end
-
-function M.resume(index)
-  local s = state.sessions[index]
-  if not s or not M.is_dormant(s) then return end
-
-  if vim.fn.executable('claude') ~= 1 then
-    vim.notify('claude: not found in PATH', vim.log.levels.ERROR)
-    return
-  end
-
-  local cli_args = config.get().cli_args
-  local args = {}
-  if cli_args and #cli_args > 0 then
-    for _, a in ipairs(cli_args) do
-      table.insert(args, a)
-    end
-  end
-  table.insert(args, '--resume')
-  table.insert(args, s.session_id)
-
-  local bufnr, job_id = terminal.create(args, { cwd = s.cwd })
-  s.bufnr = bufnr
-  s.job_id = job_id
-  s.is_alive = true
-  s.resuming = true
-  s.init_prompt_sent = true
-  s.last_input_at = vim.uv.now()
-  s.last_activity_at = os.time()
-  watch_output(s)
-  M.save_state()
 end
 
 function M.get_winnr()

@@ -26,7 +26,6 @@ local function format_activity(ts, now)
 end
 
 local function status_for(s)
-  if session.is_dormant(s) then return '[saved]' end
   if s.is_alive then return '[running]' end
   return '[exited]'
 end
@@ -204,8 +203,6 @@ function M.open()
     M.close()
     return
   end
-
-  session.refresh_state()
 
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_option_value('bufhidden', 'wipe', { buf = bufnr })
