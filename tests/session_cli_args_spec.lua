@@ -68,4 +68,67 @@ describe('session.create cli_args', function()
     session.create('test-session')
     assert.is_false(vim.tbl_contains(captured_args, '--session-id'))
   end)
+
+  describe('CLAUDE_MODEL env var', function()
+    local saved_env
+
+    before_each(function()
+      saved_env = vim.env.CLAUDE_MODEL
+      vim.env.CLAUDE_MODEL = nil
+    end)
+
+    after_each(function()
+      vim.env.CLAUDE_MODEL = saved_env
+    end)
+
+    it('does not inject --model when env var is unset', function()
+      config.setup({})
+      session = require('claude.session')
+
+      session.create('test-session')
+      assert.is_false(vim.tbl_contains(captured_args, '--model'))
+    end)
+
+    it('appends --model <value> when env var is set and no user --model', function()
+      vim.env.CLAUDE_MODEL = 'haiku'
+      config.setup({})
+      session = require('claude.session')
+
+      session.create('test-session')
+      assert.same({ '--permission-mode', 'plan', '--model', 'haiku' }, captured_args)
+    end)
+
+    it('skips env var when user passes --model', function()
+      vim.env.CLAUDE_MODEL = 'haiku'
+      config.setup({})
+      session = require('claude.session')
+
+      session.create('test-session', { '--model', 'sonnet' })
+      assert.same({ '--permission-mode', 'plan', '--model', 'sonnet' }, captured_args)
+      -- only one --model entry, with the user's value
+      local count = 0
+      for _, a in ipairs(captured_args) do
+        if a == '--model' then count = count + 1 end
+      end
+      assert.equals(1, count)
+    end)
+
+    it('treats empty env var as unset', function()
+      vim.env.CLAUDE_MODEL = ''
+      config.setup({})
+      session = require('claude.session')
+
+      session.create('test-session')
+      assert.is_false(vim.tbl_contains(captured_args, '--model'))
+    end)
+
+    it('skips env var when config.cli_args already contains --model', function()
+      vim.env.CLAUDE_MODEL = 'haiku'
+      config.setup({ cli_args = { '--model', 'opus' } })
+      session = require('claude.session')
+
+      session.create('test-session')
+      assert.same({ '--model', 'opus' }, captured_args)
+    end)
+  end)
 end)

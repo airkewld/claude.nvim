@@ -96,6 +96,12 @@ function M.create(name, args)
 
   if not args then args = {} end
 
+  local env_model = vim.env.CLAUDE_MODEL
+  if env_model and env_model ~= '' and not vim.tbl_contains(args, '--model') then
+    table.insert(args, '--model')
+    table.insert(args, env_model)
+  end
+
   local bufnr, job_id = terminal.create(args)
   local session = {
     name = name,

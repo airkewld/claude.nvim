@@ -134,6 +134,17 @@ Arguments after the session name are passed directly to the `claude` CLI:
 :Claude new quick-fix --model sonnet
 ```
 
+### Default model via env var
+
+Set `CLAUDE_MODEL` in your shell to choose the model used for new sessions:
+
+```sh
+export CLAUDE_MODEL=haiku
+```
+
+If unset (or empty), no `--model` flag is passed and the `claude` CLI picks its default.
+An explicit `--model` on `:Claude new ...` (or in `cli_args`) always wins over the env var.
+
 ## Sessions Menu
 
 The sessions menu is a floating buffer listing all sessions with their status. Keymaps:
