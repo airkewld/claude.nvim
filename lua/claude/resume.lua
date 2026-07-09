@@ -47,7 +47,7 @@ local function build_rows(entries, now, width)
   local titles = {}
   local title_width = 0
   for i, e in ipairs(entries) do
-    local t = e.title or ''
+    local t = e.name or e.title or ''
     if vim.fn.strdisplaywidth(t) > max_title then
       t = vim.fn.strcharpart(t, 0, max_title - 1) .. '…'
     end
@@ -92,7 +92,7 @@ local function resume_entry(entry)
     end
   end
 
-  local s = session.create(nil, { '--resume', entry.id }, { cwd = entry.cwd })
+  local s = session.create(entry.name, { '--resume', entry.id }, { cwd = entry.cwd })
   if not s then return end
   s.resume_id = entry.id
   require('claude').switch_to_active()
