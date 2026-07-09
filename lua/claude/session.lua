@@ -203,6 +203,10 @@ function M.rename(index, new_name)
     end
   end
   s.name = new_name
+  if s.is_alive and s.job_id then
+    -- persists the new name in the CLI's own session records
+    terminal.send_input(s.job_id, '/rename ' .. new_name)
+  end
   return true
 end
 
