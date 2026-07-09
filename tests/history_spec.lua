@@ -73,6 +73,44 @@ describe('history._parse_lines', function()
   end)
 end)
 
+describe('history._parse_name', function()
+  local history
+
+  before_each(function()
+    package.loaded['claude.history'] = nil
+    history = require('claude.history')
+  end)
+
+  local function name_line(name)
+    return vim.json.encode({ type = 'agent-name', agentName = name, sessionId = 'x' })
+  end
+
+  it('returns the last agent-name in the given lines', function()
+    local name = history._parse_name({
+      name_line('first-name'),
+      '{"type":"assistant","message":{}}',
+      name_line('renamed-later'),
+    })
+    assert.equals('renamed-later', name)
+  end)
+
+  it('returns nil when no agent-name is present', function()
+    assert.is_nil(history._parse_name({
+      '{"type":"user","message":{}}',
+      'garbage',
+    }))
+  end)
+
+  it('skips unparseable lines without erroring', function()
+    local name = history._parse_name({
+      'not json{{{',
+      name_line('good-name'),
+      'more garbage',
+    })
+    assert.equals('good-name', name)
+  end)
+end)
+
 describe('history.list', function()
   local history
   local root
@@ -146,6 +184,31 @@ describe('history.list', function()
     assert.equals('/proj/b', entries[1].cwd)
     local stat = vim.uv.fs_stat(root .. '/-proj-b/ccc-333.jsonl')
     assert.equals(stat.mtime.sec, entries[1].mtime)
+  end)
+
+  it('extracts the latest session name from deep in the file', function()
+    local lines = { jsonl_line('named session prompt', '/proj/b') }
+    for _ = 1, 80 do
+      table.insert(lines, '{"type":"assistant","message":{}}')
+    end
+    table.insert(lines, vim.json.encode({ type = 'agent-name', agentName = 'stale-name', sessionId = 'e' }))
+    table.insert(lines, vim.json.encode({ type = 'agent-name', agentName = 'my-feature-work', sessionId = 'e' }))
+    write_file(root .. '/-proj-b/eee-555.jsonl', lines)
+
+    local entries = history.list(root)
+    for _, e in ipairs(entries) do
+      if e.id == 'eee-555' then
+        assert.equals('my-feature-work', e.name)
+        return
+      end
+    end
+    error('eee-555 not found in entries')
+  end)
+
+  it('leaves name nil when the transcript has no agent-name', function()
+    local entries = history.list(root)
+    assert.equals('ccc-333', entries[1].id)
+    assert.is_nil(entries[1].name)
   end)
 
   it('falls back to a placeholder title for unparseable files', function()

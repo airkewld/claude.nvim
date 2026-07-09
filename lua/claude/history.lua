@@ -25,7 +25,25 @@ end
 
 M._parse_lines = parse_lines
 
+local function parse_name(lines)
+  local name
+  for _, line in ipairs(lines) do
+    local ok, entry = pcall(vim.json.decode, line)
+    if ok
+      and type(entry) == 'table'
+      and entry.type == 'agent-name'
+      and type(entry.agentName) == 'string'
+    then
+      name = entry.agentName
+    end
+  end
+  return name
+end
+
+M._parse_name = parse_name
+
 local MAX_HEAD_LINES = 50
+local TAIL_BYTES = 64 * 1024
 
 local function read_head(path)
   local fh = io.open(path, 'r')
@@ -39,6 +57,21 @@ local function read_head(path)
   return lines
 end
 
+local function read_tail(path, size)
+  local fh = io.open(path, 'r')
+  if not fh then return {} end
+  local offset = math.max(size - TAIL_BYTES, 0)
+  fh:seek('set', offset)
+  local chunk = fh:read('*a') or ''
+  fh:close()
+  local lines = vim.split(chunk, '\n', { plain = true })
+  if offset > 0 then
+    -- first line is likely cut mid-entry; parse_name skips it as unparseable
+    table.remove(lines, 1)
+  end
+  return lines
+end
+
 function M.list(root)
   root = root or vim.fn.expand('~/.claude/projects')
   local entries = {}
@@ -49,6 +82,7 @@ function M.list(root)
       table.insert(entries, {
         id = vim.fn.fnamemodify(path, ':t:r'),
         title = head.title or '(no prompt)',
+        name = parse_name(read_tail(path, stat.size)),
         cwd = head.cwd,
         mtime = stat.mtime.sec,
       })
