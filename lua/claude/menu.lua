@@ -82,6 +82,7 @@ local function build_rows(sessions, active, now)
   return lines
 end
 
+M.format_activity = format_activity
 M._format_activity = format_activity
 M._build_rows = build_rows
 
@@ -240,6 +241,10 @@ function M.open()
   vim.keymap.set('n', 'd', M.delete, opts)
   vim.keymap.set('n', 'n', M.new_session, opts)
   vim.keymap.set('n', 'r', M.rename, opts)
+  vim.keymap.set('n', 'R', function()
+    M.close()
+    require('claude.resume').open()
+  end, opts)
   vim.keymap.set('n', 'K', M.move_up, opts)
   vim.keymap.set('n', 'J', M.move_down, opts)
   for i = 1, math.min(session.count(), 9) do

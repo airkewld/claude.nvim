@@ -71,6 +71,11 @@ local function toggle()
   local s = session.get_active()
 
   if not s then
+    local entries = require('claude.history').list()
+    if #entries > 0 then
+      require('claude.resume').open(entries)
+      return
+    end
     session.create()
     s = session.get_active()
     if not s then return end
