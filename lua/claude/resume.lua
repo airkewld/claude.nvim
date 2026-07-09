@@ -169,6 +169,37 @@ local function switch_tab()
   vim.api.nvim_win_set_cursor(picker_state.winnr, { 1, 0 })
 end
 
+local function delete_entry(index)
+  local entry = picker_state.visible[index]
+  if not entry then return end
+
+  local session = require('claude.session')
+  for _, s in ipairs(session.list()) do
+    if s.resume_id == entry.id and s.is_alive then
+      vim.notify('Claude: "' .. s.name .. '" is currently running — close it first', vim.log.levels.WARN)
+      return
+    end
+  end
+
+  local label = entry.name or entry.title or entry.id
+  if vim.fn.confirm('Delete session "' .. label .. '" and its history?', '&Yes\n&No', 2) ~= 1 then
+    return
+  end
+
+  if not history.delete(entry) then return end
+
+  for i, e in ipairs(picker_state.entries) do
+    if e.id == entry.id then
+      table.remove(picker_state.entries, i)
+      break
+    end
+  end
+  picker_state.visible = visible(picker_state.entries, picker_state.tab, picker_state.cwd)
+  render()
+  local cursor = vim.api.nvim_win_get_cursor(picker_state.winnr)[1]
+  vim.api.nvim_win_set_cursor(picker_state.winnr, { math.min(cursor, math.max(#picker_state.visible, 1)), 0 })
+end
+
 local function new_session()
   M.close()
   local session = require('claude.session')
@@ -219,6 +250,9 @@ function M.open(entries)
   end, opts)
   vim.keymap.set('n', '<Tab>', switch_tab, opts)
   vim.keymap.set('n', 'n', new_session, opts)
+  vim.keymap.set('n', 'd', function()
+    delete_entry(vim.api.nvim_win_get_cursor(picker_state.winnr)[1])
+  end, opts)
   for i = 1, 9 do
     vim.keymap.set('n', tostring(i), function() pick(i) end, opts)
   end

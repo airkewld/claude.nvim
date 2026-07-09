@@ -81,6 +81,7 @@ function M.list(root)
       local head = parse_lines(read_head(path))
       table.insert(entries, {
         id = vim.fn.fnamemodify(path, ':t:r'),
+        path = path,
         title = head.title or '(no prompt)',
         name = parse_name(read_tail(path, stat.size)),
         cwd = head.cwd,
@@ -94,6 +95,17 @@ end
 
 function M.filter_by_cwd(entries, cwd)
   return vim.tbl_filter(function(e) return e.cwd == cwd end, entries)
+end
+
+function M.delete(entry)
+  if not entry or not entry.path then return false end
+  if vim.fn.filereadable(entry.path) ~= 1 then return false end
+  vim.fn.delete(entry.path)
+  local checkpoint_dir = entry.path:gsub('%.jsonl$', '')
+  if vim.fn.isdirectory(checkpoint_dir) == 1 then
+    vim.fn.delete(checkpoint_dir, 'rf')
+  end
+  return true
 end
 
 return M

@@ -220,6 +220,34 @@ describe('history.list', function()
   it('returns an empty list for a missing root', function()
     assert.same({}, history.list(root .. '/does-not-exist'))
   end)
+
+  describe('delete', function()
+    local function find(entries, id)
+      for _, e in ipairs(entries) do
+        if e.id == id then return e end
+      end
+    end
+
+    it('removes the transcript and its checkpoint directory', function()
+      local e = find(history.list(root), 'aaa-111')
+      assert.is_true(history.delete(e))
+      assert.equals(0, vim.fn.filereadable(root .. '/-proj-a/aaa-111.jsonl'))
+      assert.equals(0, vim.fn.isdirectory(root .. '/-proj-a/aaa-111'))
+      assert.is_nil(find(history.list(root), 'aaa-111'))
+    end)
+
+    it('leaves other sessions untouched', function()
+      history.delete(find(history.list(root), 'aaa-111'))
+      assert.is_not_nil(find(history.list(root), 'bbb-222'))
+      assert.equals(1, vim.fn.isdirectory(root .. '/-proj-a/memory'))
+    end)
+
+    it('returns false when the transcript is already gone', function()
+      local e = find(history.list(root), 'aaa-111')
+      assert.is_true(history.delete(e))
+      assert.is_false(history.delete(e))
+    end)
+  end)
 end)
 
 describe('history.filter_by_cwd', function()
