@@ -63,6 +63,19 @@ describe('resume rows and tabs', function()
         'expected row to end with "' .. expected .. '", got: ' .. lines[1])
     end)
 
+    it('shows the session name instead of the title when present', function()
+      local e = entry('a', 'first prompt text', vim.env.HOME .. '/a')
+      e.name = 'my-feature-work'
+      local lines = resume._build_rows({ e }, os.time(), 120)
+      assert.truthy(lines[1]:find('my-feature-work', 1, true), 'expected name in: ' .. lines[1])
+      assert.is_nil(lines[1]:find('first prompt text', 1, true))
+    end)
+
+    it('falls back to the title when there is no name', function()
+      local lines = resume._build_rows({ entry('a', 'first prompt text', vim.env.HOME .. '/a') }, os.time(), 120)
+      assert.truthy(lines[1]:find('first prompt text', 1, true))
+    end)
+
     it('truncates long titles with an ellipsis to fit the width', function()
       local long_title = string.rep('word ', 40)
       local entries = {
@@ -145,6 +158,16 @@ describe('resume._resume_entry', function()
     assert.equals('/proj', created.opts.cwd)
     assert.equals('abc-123', create_result.resume_id)
     assert.is_true(switched)
+  end)
+
+  it('names the plugin session after the stored session name', function()
+    resume._resume_entry({ id = 'abc-123', cwd = '/proj', title = 't', name = 'my-feature-work' })
+    assert.equals('my-feature-work', created.name)
+  end)
+
+  it('leaves the name nil for unnamed entries so it auto-generates', function()
+    resume._resume_entry({ id = 'abc-123', cwd = '/proj', title = 't' })
+    assert.is_nil(created.name)
   end)
 
   it('re-activates a live session already resumed from the same id', function()

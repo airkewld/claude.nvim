@@ -34,7 +34,7 @@ describe('session.create cli_args', function()
     session = require('claude.session')
 
     session.create('test-session')
-    assert.same({ '--permission-mode', 'plan' }, captured_args)
+    assert.same({ '--permission-mode', 'plan', '--name', vim.fn.shellescape('test-session') }, captured_args)
   end)
 
   it('prepends cli_args before user args', function()
@@ -42,7 +42,7 @@ describe('session.create cli_args', function()
     session = require('claude.session')
 
     session.create('test-session', { '--resume' })
-    assert.same({ '--permission-mode', 'plan', '--resume' }, captured_args)
+    assert.same({ '--permission-mode', 'plan', '--resume', '--name', vim.fn.shellescape('test-session') }, captured_args)
   end)
 
   it('passes only user args when cli_args is empty', function()
@@ -50,15 +50,41 @@ describe('session.create cli_args', function()
     session = require('claude.session')
 
     session.create('test-session', { '--resume' })
-    assert.same({ '--resume' }, captured_args)
+    assert.same({ '--resume', '--name', vim.fn.shellescape('test-session') }, captured_args)
   end)
 
-  it('passes no args when both cli_args and user args are empty', function()
+  it('passes only the name when both cli_args and user args are empty', function()
     config.setup({ cli_args = {} })
     session = require('claude.session')
 
     session.create('test-session')
-    assert.same({}, captured_args)
+    assert.same({ '--name', vim.fn.shellescape('test-session') }, captured_args)
+  end)
+
+  describe('--name injection', function()
+    it('does not pass --name for auto-named sessions', function()
+      config.setup({})
+      session = require('claude.session')
+
+      session.create()
+      assert.is_false(vim.tbl_contains(captured_args, '--name'))
+    end)
+
+    it('skips injection when user args already contain --name', function()
+      config.setup({ cli_args = {} })
+      session = require('claude.session')
+
+      session.create('test-session', { '--name', 'other' })
+      assert.same({ '--name', 'other' }, captured_args)
+    end)
+
+    it('shell-escapes names with spaces', function()
+      config.setup({ cli_args = {} })
+      session = require('claude.session')
+
+      session.create('my session')
+      assert.same({ '--name', vim.fn.shellescape('my session') }, captured_args)
+    end)
   end)
 
   it('does not pass --session-id', function()
@@ -95,7 +121,7 @@ describe('session.create cli_args', function()
       session = require('claude.session')
 
       session.create('test-session')
-      assert.same({ '--permission-mode', 'plan', '--model', 'haiku' }, captured_args)
+      assert.same({ '--permission-mode', 'plan', '--model', 'haiku', '--name', vim.fn.shellescape('test-session') }, captured_args)
     end)
 
     it('skips env var when user passes --model', function()
@@ -104,7 +130,7 @@ describe('session.create cli_args', function()
       session = require('claude.session')
 
       session.create('test-session', { '--model', 'sonnet' })
-      assert.same({ '--permission-mode', 'plan', '--model', 'sonnet' }, captured_args)
+      assert.same({ '--permission-mode', 'plan', '--model', 'sonnet', '--name', vim.fn.shellescape('test-session') }, captured_args)
       -- only one --model entry, with the user's value
       local count = 0
       for _, a in ipairs(captured_args) do
@@ -128,7 +154,7 @@ describe('session.create cli_args', function()
       session = require('claude.session')
 
       session.create('test-session')
-      assert.same({ '--model', 'opus' }, captured_args)
+      assert.same({ '--model', 'opus', '--name', vim.fn.shellescape('test-session') }, captured_args)
     end)
   end)
 end)

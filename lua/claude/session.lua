@@ -72,6 +72,7 @@ function M.create(name, args, opts)
     return nil
   end
 
+  local name_given = name ~= nil
   if not name then
     state.counter = state.counter + 1
     name = 'session-' .. state.counter
@@ -101,6 +102,12 @@ function M.create(name, args, opts)
   if env_model and env_model ~= '' and not vim.tbl_contains(args, '--model') then
     table.insert(args, '--model')
     table.insert(args, env_model)
+  end
+
+  -- persists the display name in the CLI's own session records
+  if name_given and not vim.tbl_contains(args, '--name') then
+    table.insert(args, '--name')
+    table.insert(args, vim.fn.shellescape(name))
   end
 
   local bufnr, job_id = terminal.create(args, opts.cwd and { cwd = opts.cwd } or nil)
@@ -196,6 +203,10 @@ function M.rename(index, new_name)
     end
   end
   s.name = new_name
+  if s.is_alive and s.job_id then
+    -- persists the new name in the CLI's own session records
+    terminal.send_input(s.job_id, '/rename ' .. new_name)
+  end
   return true
 end
 
