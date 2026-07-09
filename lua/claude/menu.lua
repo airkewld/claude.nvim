@@ -82,6 +82,7 @@ local function build_rows(sessions, active, now)
   return lines
 end
 
+M.format_activity = format_activity
 M._format_activity = format_activity
 M._build_rows = build_rows
 
