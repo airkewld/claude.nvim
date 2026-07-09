@@ -100,3 +100,77 @@ describe('resume rows and tabs', function()
     end)
   end)
 end)
+
+describe('resume._resume_entry', function()
+  local resume
+  local created
+  local switched
+  local activated
+  local fake_sessions
+  local create_result
+
+  before_each(function()
+    created = nil
+    switched = false
+    activated = nil
+    fake_sessions = {}
+    create_result = {}
+
+    package.loaded['claude.resume'] = nil
+    package.loaded['claude.history'] = nil
+    package.loaded['claude.menu'] = nil
+    package.loaded['claude.session'] = nil
+    package.loaded['claude.config'] = nil
+    package.loaded['claude'] = nil
+
+    package.loaded['claude.session'] = {
+      list = function() return fake_sessions end,
+      set_active = function(i) activated = i end,
+      create = function(name, args, opts)
+        created = { name = name, args = args, opts = opts }
+        return create_result
+      end,
+    }
+    package.loaded['claude'] = {
+      switch_to_active = function() switched = true end,
+    }
+
+    require('claude.config').setup({})
+    resume = require('claude.resume')
+  end)
+
+  it('creates a session with --resume and the entry cwd', function()
+    resume._resume_entry({ id = 'abc-123', cwd = '/proj', title = 't' })
+    assert.same({ '--resume', 'abc-123' }, created.args)
+    assert.equals('/proj', created.opts.cwd)
+    assert.equals('abc-123', create_result.resume_id)
+    assert.is_true(switched)
+  end)
+
+  it('re-activates a live session already resumed from the same id', function()
+    fake_sessions = {
+      { name = 'other', resume_id = 'zzz', is_alive = true },
+      { name = 'mine', resume_id = 'abc-123', is_alive = true },
+    }
+    resume._resume_entry({ id = 'abc-123', cwd = '/proj', title = 't' })
+    assert.is_nil(created)
+    assert.equals(2, activated)
+    assert.is_true(switched)
+  end)
+
+  it('spawns a fresh session when the previous resume has exited', function()
+    fake_sessions = {
+      { name = 'mine', resume_id = 'abc-123', is_alive = false },
+    }
+    resume._resume_entry({ id = 'abc-123', cwd = '/proj', title = 't' })
+    assert.is_not_nil(created)
+  end)
+
+  it('tolerates session.create returning nil', function()
+    create_result = nil
+    assert.has_no_error(function()
+      resume._resume_entry({ id = 'abc-123', cwd = '/proj', title = 't' })
+    end)
+    assert.is_false(switched)
+  end)
+end)
