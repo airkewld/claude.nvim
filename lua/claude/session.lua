@@ -65,7 +65,8 @@ function M.mark_activity(session)
   session.last_activity_at = os.time()
 end
 
-function M.create(name, args)
+function M.create(name, args, opts)
+  opts = opts or {}
   if vim.fn.executable('claude') ~= 1 then
     vim.notify('claude: not found in PATH', vim.log.levels.ERROR)
     return nil
@@ -102,11 +103,12 @@ function M.create(name, args)
     table.insert(args, env_model)
   end
 
-  local bufnr, job_id = terminal.create(args)
+  local bufnr, job_id = terminal.create(args, opts.cwd and { cwd = opts.cwd } or nil)
   local session = {
     name = name,
     bufnr = bufnr,
     job_id = job_id,
+    cwd = opts.cwd or vim.fn.getcwd(),
     is_alive = true,
     idle_timer = nil,
     notified_idle = false,
