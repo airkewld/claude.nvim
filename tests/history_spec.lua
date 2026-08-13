@@ -71,6 +71,24 @@ describe('history._parse_lines', function()
     })
     assert.equals('line one line two', head.title)
   end)
+
+  it('skips slash-command entries and uses the next real message', function()
+    local head = history._parse_lines({
+      user_line('<command-name>/clear</command-name> <command-message>clear</command-message>'),
+      user_line('the real prompt'),
+    })
+    assert.equals('the real prompt', head.title)
+    assert.equals('/proj', head.cwd)
+  end)
+
+  it('flags command-only transcripts and still captures cwd', function()
+    local head = history._parse_lines({
+      user_line('<command-name>/clear</command-name> <command-message>clear</command-message>'),
+    })
+    assert.is_true(head.command_only)
+    assert.equals('/proj', head.cwd)
+    assert.is_nil(head.title)
+  end)
 end)
 
 describe('history._parse_name', function()
@@ -151,6 +169,11 @@ describe('history.list', function()
     -- garbage jsonl: id still resumable, title falls back
     write_file(root .. '/-proj-b/ddd-444.jsonl', { 'not json at all' })
 
+    -- command-only jsonl: nothing to resume, excluded from the listing
+    write_file(root .. '/-proj-b/fff-666.jsonl', {
+      jsonl_line('<command-name>/clear</command-name> <command-message>clear</command-message>', '/proj/b'),
+    })
+
     -- decoys that must be ignored
     vim.fn.mkdir(root .. '/-proj-a/aaa-111', 'p')
     write_file(root .. '/-proj-a/aaa-111/nested.jsonl', { jsonl_line('nested', '/x') })
@@ -215,6 +238,13 @@ describe('history.list', function()
     local entries = history.list(root)
     assert.equals('(no prompt)', entries[2].title)
     assert.is_nil(entries[2].cwd)
+  end)
+
+  it('excludes command-only sessions from the listing', function()
+    local entries = history.list(root)
+    for _, e in ipairs(entries) do
+      assert.not_equals('fff-666', e.id)
+    end
   end)
 
   it('returns an empty list for a missing root', function()
