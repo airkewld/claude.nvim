@@ -172,7 +172,14 @@ Because the CLI does the listing and resuming, there's nothing for the plugin to
 
 ### Deleting past sessions
 
-The native `--resume` picker has no delete action, so `:Claude delete` handles it. It lists the current project's past sessions (the same ones `claude --resume` shows), lets you pick one, confirms, and removes its transcript and sidecar directory from `~/.claude/projects/`. Sessions currently running in the plugin are protected from deletion.
+The native `--resume` picker has no delete action, so `:Claude delete` handles it. It opens a floating multi-select picker listing the current project's past sessions (the same ones `claude --resume` shows). Mark the ones you want, then delete them together after a single confirmation. Each deletion removes the session's transcript and sidecar directory from `~/.claude/projects/`. Sessions currently running in the plugin are protected from deletion.
+
+| Key | Action |
+|-----|--------|
+| `<Space>` | Toggle mark on the session under cursor |
+| `a` | Toggle mark on all sessions |
+| `d` / `<CR>` | Delete the marked sessions (after confirmation) |
+| `q` / `<Esc>` | Close the picker |
 
 ### Session names
 

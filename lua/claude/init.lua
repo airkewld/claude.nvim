@@ -140,38 +140,7 @@ local subcommands = {
     require('claude.resume').open()
   end,
   delete = function()
-    local history = require('claude.history')
-    local entries = history.filter_by_cwd(history.list(), vim.fn.getcwd())
-    if #entries == 0 then
-      vim.notify('Claude: no past sessions for this project', vim.log.levels.INFO)
-      return
-    end
-    local function label_for(e)
-      return e.name or e.title or e.id
-    end
-    vim.ui.select(entries, {
-      prompt = 'Delete Claude session:',
-      format_item = function(e)
-        return label_for(e) .. ' · ' .. menu.format_activity(e.mtime, os.time())
-      end,
-    }, function(entry)
-      if not entry then return end
-      for _, s in ipairs(session.list()) do
-        if s.resume_id == entry.id and s.is_alive then
-          vim.notify('Claude: "' .. s.name .. '" is currently running — close it first', vim.log.levels.WARN)
-          return
-        end
-      end
-      local label = label_for(entry)
-      if vim.fn.confirm('Delete "' .. label .. '" and its history?', '&Yes\n&No', 2) ~= 1 then
-        return
-      end
-      if history.delete(entry) then
-        vim.notify('Claude: deleted "' .. label .. '"', vim.log.levels.INFO)
-      else
-        vim.notify('Claude: failed to delete "' .. label .. '"', vim.log.levels.ERROR)
-      end
-    end)
+    require('claude.delete').open()
   end,
   next = function() cycle('next') end,
   prev = function() cycle('prev') end,
