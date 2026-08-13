@@ -50,6 +50,62 @@ end
 
 M._parse_name = parse_name
 
+local MAX_PREVIEW_LINES = 500
+
+local function tool_hint(input)
+  if type(input) ~= 'table' then return '' end
+  for _, key in ipairs({ 'file_path', 'command', 'description', 'pattern', 'path' }) do
+    local value = input[key]
+    if type(value) == 'string' and value ~= '' then
+      return ' ' .. flatten(value):sub(1, 60)
+    end
+  end
+  return ''
+end
+
+local function append_block(out, label, text)
+  local body = vim.split(text, '\n', { plain = true })
+  out[#out + 1] = label .. (body[1] or '')
+  for i = 2, #body do
+    out[#out + 1] = body[i]
+  end
+  out[#out + 1] = ''
+end
+
+local function render_transcript(lines)
+  local out = {}
+  for _, line in ipairs(lines) do
+    if #out >= MAX_PREVIEW_LINES then
+      out[#out + 1] = '… (truncated)'
+      break
+    end
+    local ok, entry = pcall(vim.json.decode, line)
+    if ok and type(entry) == 'table' and type(entry.message) == 'table' then
+      local content = entry.message.content
+      if entry.type == 'user'
+        and type(content) == 'string'
+        and not entry.isMeta
+        and not content:match('^%s*<command%-name>')
+        and not content:match('^%s*<local%-command')
+      then
+        append_block(out, 'You: ', content)
+      elseif entry.type == 'assistant' and type(content) == 'table' then
+        for _, block in ipairs(content) do
+          if block.type == 'text' and type(block.text) == 'string' then
+            append_block(out, 'Claude: ', block.text)
+          elseif block.type == 'tool_use' then
+            out[#out + 1] = '  [tool: ' .. (block.name or '?') .. tool_hint(block.input) .. ']'
+          end
+        end
+        out[#out + 1] = ''
+      end
+    end
+  end
+  return out
+end
+
+M._render_transcript = render_transcript
+
 local MAX_HEAD_LINES = 50
 local TAIL_BYTES = 64 * 1024
 
@@ -101,6 +157,17 @@ function M.list(root)
   end
   table.sort(entries, function(a, b) return a.mtime > b.mtime end)
   return entries
+end
+
+function M.transcript(path)
+  local fh = io.open(path, 'r')
+  if not fh then return {} end
+  local lines = {}
+  for line in fh:lines() do
+    table.insert(lines, line)
+  end
+  fh:close()
+  return render_transcript(lines)
 end
 
 function M.filter_by_cwd(entries, cwd)

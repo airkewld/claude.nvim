@@ -96,6 +96,7 @@ require('claude').setup({
     toggle = '<leader>cct',     -- toggle active session window
     sessions = '<leader>ccs',   -- open Claude's native --resume picker
     new = '<leader>ccn',        -- create a new session (prompts for a name)
+    delete = '<leader>ccd',     -- browse and delete past sessions
     next = '<leader>ccj',       -- cycle to next session (shows it even if window is hidden)
     prev = '<leader>cck',       -- cycle to previous session
     send_escape = '<C-e>',      -- terminal mode: send Esc to Claude (e.g. go back in --resume)
@@ -112,6 +113,7 @@ Set any keymap to `false` to disable it.
 | `<leader>cct` | normal | Toggle active session (prompts for a name and starts one if none is running) |
 | `<leader>ccs` | normal | Open Claude's native `--resume` picker |
 | `<leader>ccn` | normal | Create a new session (prompts for a name) |
+| `<leader>ccd` | normal | Browse and delete past sessions (with a transcript preview) |
 | `<leader>ccj` | normal | Cycle to next session (shows it even if window is hidden) |
 | `<leader>cck` | normal | Cycle to previous session |
 | `<Esc>` | terminal | Exit terminal mode (enter normal mode in the float) |
@@ -125,7 +127,7 @@ Set any keymap to `false` to disable it.
 | `:Claude` | Toggle active session |
 | `:Claude new [name] [args...]` | Create a new session with optional CLI args |
 | `:Claude resume` | Open Claude's native `--resume` picker |
-| `:Claude delete` | Delete a past session for the current project |
+| `:Claude delete` | Browse and delete past sessions (with a transcript preview) |
 | `:Claude next` | Switch to the next session |
 | `:Claude prev` | Switch to the previous session |
 | `:Claude send` | Send current file path to active session |
@@ -159,16 +161,20 @@ Because the CLI does the listing and resuming, there's nothing for the plugin to
 
 The picker uses `<Esc>` to step back from a preview or cancel, but in the floating terminal `<Esc>` leaves terminal mode instead. Press `<C-e>` (configurable via `keymaps.send_escape`) to send a real Esc to Claude — use it to back out of a preview or cancel the picker.
 
-### Deleting past sessions
+### Browsing and deleting past sessions
 
-The native `--resume` picker has no delete action, so `:Claude delete` handles it. It opens a floating multi-select picker listing the current project's past sessions (the same ones `claude --resume` shows). Mark the ones you want, then delete them together after a single confirmation. Each deletion removes the session's transcript and sidecar directory from `~/.claude/projects/`. Sessions currently running in the plugin are protected from deletion.
+The native `--resume` picker has no delete action, so `:Claude delete` (or `<leader>ccd`) opens a session browser. The left pane lists past sessions (the same ones `claude --resume` shows) and the right pane previews the highlighted session's transcript as you move the cursor. By default it shows the current project; press `p` to switch to all projects, where each row is prefixed with its project name.
+
+Mark sessions with `<Space>` and delete them together after a single confirmation, or just press `d` on a row to delete that one. Each deletion removes the session's transcript and sidecar directory from `~/.claude/projects/`. Sessions currently running in the plugin are protected from deletion.
 
 | Key | Action |
 |-----|--------|
 | `<Space>` | Toggle mark on the session under cursor |
 | `a` | Toggle mark on all sessions |
-| `d` / `<CR>` | Delete the marked sessions (after confirmation) |
-| `q` / `<Esc>` | Close the picker |
+| `p` | Toggle between the current project and all projects |
+| `<C-d>` / `<C-u>` | Scroll the transcript preview |
+| `d` / `<CR>` | Delete the marked sessions, or the cursor row if none are marked (after confirmation) |
+| `q` / `<Esc>` | Close the browser |
 
 ### Session names
 

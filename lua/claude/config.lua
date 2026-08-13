@@ -20,13 +20,15 @@ local defaults = {
     border = 'rounded',
   },
   menu = {
-    width = 0.6,
+    width = 0.8,
+    height = 0.8,
     border = 'rounded',
   },
   keymaps = {
     toggle = '<leader>cct',
     sessions = '<leader>ccs',
     new = '<leader>ccn',
+    delete = '<leader>ccd',
     next = '<leader>ccj',
     prev = '<leader>cck',
     send_escape = '<C-e>',

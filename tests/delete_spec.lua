@@ -27,7 +27,9 @@ describe('claude.delete', function()
 
     package.loaded['claude.history'] = {
       list = function() return {} end,
-      filter_by_cwd = function(entries) return entries end,
+      filter_by_cwd = function(entries, cwd)
+        return vim.tbl_filter(function(e) return e.cwd == cwd end, entries)
+      end,
       delete = function(e) table.insert(deleted, e.id); return true end,
     }
     package.loaded['claude.session'] = {
@@ -103,6 +105,66 @@ describe('claude.delete', function()
       assert.equals(2, #collected)
       assert.equals('aaa', collected[1].id)
       assert.equals('ccc', collected[2].id)
+    end)
+  end)
+
+  describe('project_label', function()
+    it('returns the basename of the cwd', function()
+      assert.equals('claude.nvim', delete._project_label('/Users/oscar/dev/claude.nvim'))
+    end)
+
+    it('falls back to a placeholder when cwd is missing', function()
+      assert.equals('(unknown)', delete._project_label(nil))
+    end)
+  end)
+
+  describe('entries_for_scope', function()
+    it('filters to the given cwd in cwd scope', function()
+      local all = { entry('a'), entry('b') }
+      all[2].cwd = '/other'
+      local out = delete._entries_for_scope(all, 'cwd', '/proj')
+      assert.equals(1, #out)
+      assert.equals('a', out[1].id)
+    end)
+
+    it('returns everything in all scope', function()
+      local all = { entry('a'), entry('b') }
+      all[2].cwd = '/other'
+      local out = delete._entries_for_scope(all, 'all', '/proj')
+      assert.equals(2, #out)
+    end)
+  end)
+
+  describe('target_entries', function()
+    it('returns the marked set when anything is marked', function()
+      local entries = { entry('a'), entry('b'), entry('c') }
+      local out = delete._target_entries(entries, { [1] = true, [3] = true }, 2)
+      assert.equals(2, #out)
+      assert.equals('a', out[1].id)
+      assert.equals('c', out[2].id)
+    end)
+
+    it('falls back to the cursor row when nothing is marked', function()
+      local entries = { entry('a'), entry('b'), entry('c') }
+      local out = delete._target_entries(entries, {}, 2)
+      assert.equals(1, #out)
+      assert.equals('b', out[1].id)
+    end)
+  end)
+
+  describe('build_rows scope prefix', function()
+    it('prefixes the project basename in all scope', function()
+      local e = entry('a', 'my-feature')
+      e.cwd = '/Users/oscar/dev/dotfiles'
+      local rows = delete._build_rows({ e }, {}, os.time(), 'all')
+      assert.truthy(rows[1]:find('dotfiles/', 1, true), rows[1])
+    end)
+
+    it('omits the project prefix in cwd scope', function()
+      local e = entry('a', 'my-feature')
+      e.cwd = '/Users/oscar/dev/dotfiles'
+      local rows = delete._build_rows({ e }, {}, os.time(), 'cwd')
+      assert.is_nil(rows[1]:find('dotfiles/', 1, true))
     end)
   end)
 

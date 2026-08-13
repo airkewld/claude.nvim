@@ -301,3 +301,105 @@ describe('history.filter_by_cwd', function()
     assert.equals('c', filtered[2].id)
   end)
 end)
+
+describe('history._render_transcript', function()
+  local history
+
+  before_each(function()
+    package.loaded['claude.history'] = nil
+    history = require('claude.history')
+  end)
+
+  local function user_line(content, extra)
+    local entry = { type = 'user', message = { role = 'user', content = content } }
+    for k, v in pairs(extra or {}) do entry[k] = v end
+    return vim.json.encode(entry)
+  end
+
+  local function assistant_line(blocks)
+    return vim.json.encode({ type = 'assistant', message = { role = 'assistant', content = blocks } })
+  end
+
+  local function joined(lines)
+    return table.concat(lines, '\n')
+  end
+
+  it('renders user and assistant text as You:/Claude: turns', function()
+    local out = history._render_transcript({
+      user_line('add a delete picker'),
+      assistant_line({ { type = 'text', text = "I'll create delete.lua" } }),
+    })
+    local text = joined(out)
+    assert.truthy(text:find('You: add a delete picker', 1, true), text)
+    assert.truthy(text:find("Claude: I'll create delete.lua", 1, true), text)
+  end)
+
+  it('compacts tool_use blocks with a hint from the input', function()
+    local out = history._render_transcript({
+      assistant_line({
+        { type = 'text', text = 'editing now' },
+        { type = 'tool_use', name = 'Edit', input = { file_path = '/proj/init.lua' } },
+      }),
+    })
+    local text = joined(out)
+    assert.truthy(text:find('[tool: Edit', 1, true), text)
+    assert.truthy(text:find('/proj/init.lua', 1, true), text)
+  end)
+
+  it('keeps multi-line message content on separate lines', function()
+    local out = history._render_transcript({ user_line('line one\nline two') })
+    assert.equals('You: line one', out[1])
+    assert.equals('line two', out[2])
+  end)
+
+  it('skips thinking blocks, tool_result content, meta and command lines', function()
+    local out = history._render_transcript({
+      user_line('<command-name>/clear</command-name>'),
+      user_line('synthetic', { isMeta = true }),
+      user_line('<local-command-stdout>Login successful</local-command-stdout>'),
+      user_line({ { type = 'tool_result', content = 'stuff' } }),
+      assistant_line({ { type = 'thinking', thinking = 'hmm' } }),
+      user_line('the real prompt'),
+    })
+    local text = joined(out)
+    assert.truthy(text:find('You: the real prompt', 1, true), text)
+    assert.is_nil(text:find('/clear', 1, true))
+    assert.is_nil(text:find('synthetic', 1, true))
+    assert.is_nil(text:find('Login successful', 1, true))
+    assert.is_nil(text:find('stuff', 1, true))
+    assert.is_nil(text:find('hmm', 1, true))
+  end)
+
+  it('caps output and marks it truncated', function()
+    local lines = {}
+    for _ = 1, 1000 do
+      table.insert(lines, user_line('a prompt'))
+    end
+    local out = history._render_transcript(lines)
+    assert.is_true(#out <= 520)
+    assert.equals('… (truncated)', out[#out])
+  end)
+end)
+
+describe('history.transcript', function()
+  local history
+
+  before_each(function()
+    package.loaded['claude.history'] = nil
+    history = require('claude.history')
+  end)
+
+  it('reads a file and renders its transcript', function()
+    local path = vim.fn.tempname()
+    local fh = assert(io.open(path, 'w'))
+    fh:write(vim.json.encode({ type = 'user', message = { content = 'hello there' } }) .. '\n')
+    fh:close()
+    local out = history.transcript(path)
+    assert.truthy(table.concat(out, '\n'):find('You: hello there', 1, true))
+    vim.fn.delete(path)
+  end)
+
+  it('returns an empty list for an unreadable path', function()
+    assert.same({}, history.transcript('/no/such/file.jsonl'))
+  end)
+end)
