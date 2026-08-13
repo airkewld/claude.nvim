@@ -7,7 +7,7 @@ Neovim plugin for running multiple Claude Code sessions in floating terminal win
 - **Multiple named sessions** running simultaneously in hidden terminal buffers
 - **Harpoon-style session menu** for browsing, selecting, creating, renaming, reordering, and deleting sessions
 - **Cycle between sessions** with a single keybinding — jump to next/prev even when the Claude window is hidden
-- **Resume past CLI sessions** from a picker with This project / All projects tabs — reads the Claude CLI's own session history, nothing extra stored
+- **Resume past CLI sessions** through Claude's native `--resume` picker for the current project
 - **Auto review mode** drops idle sessions out of terminal-insert so you can scroll/cycle without fighting Esc
 - **Idle detection** notifies you when a background session is waiting for input
 - **Interactive/Review mode indicator** in the window title reflects whether you're typing or reading
@@ -107,7 +107,7 @@ Set any keymap to `false` to disable it.
 
 | Key | Mode | Action |
 |-----|------|--------|
-| `<leader>cl` | normal | Toggle active session (offers to resume a past session if none exist) |
+| `<leader>cl` | normal | Toggle active session (starts a fresh one if none is running) |
 | `<leader>cs` | normal | Open sessions menu |
 | `<leader>cj` | normal | Cycle to next session (shows it even if window is hidden) |
 | `<leader>ck` | normal | Cycle to previous session |
@@ -121,6 +121,7 @@ Set any keymap to `false` to disable it.
 | `:Claude` | Toggle active session |
 | `:Claude new [name] [args...]` | Create a new session with optional CLI args |
 | `:Claude sessions` | Open the sessions menu |
+| `:Claude resume` | Open Claude's native `--resume` picker |
 | `:Claude next` | Switch to the next session |
 | `:Claude prev` | Switch to the previous session |
 | `:Claude send` | Send current file path to active session |
@@ -156,7 +157,7 @@ The sessions menu is a floating buffer listing all sessions with their status. K
 | `1`-`9` | Jump to session by number |
 | `n` | Create a new named session |
 | `r` | Rename session under cursor |
-| `R` | Open the resume picker for past CLI sessions |
+| `R` | Open Claude's native `--resume` picker for past CLI sessions |
 | `d` | Delete session under cursor |
 | `J` | Move session down |
 | `K` | Move session up |
@@ -164,18 +165,9 @@ The sessions menu is a floating buffer listing all sessions with their status. K
 
 ## Resuming Past Sessions
 
-The Claude CLI stores every conversation under `~/.claude/projects/`. The resume picker lists them — session name (or first prompt), project directory, and last activity — and reopens one with `claude --resume` in its original working directory.
+Resuming uses the Claude CLI's own `--resume` picker. Run `:Claude resume`, or press `R` in the sessions menu, and the plugin spawns a session running `claude --resume` in the current project — Claude renders its native picker inside the floating terminal and handles the selection.
 
-The picker opens when you toggle Claude with no session running, or with `R` from the sessions menu. Picking an entry that's already running switches to it instead of starting a duplicate. Resumed sessions keep their stored name.
-
-| Key | Action |
-|-----|--------|
-| `<Tab>` | Switch between This project / All projects tabs |
-| `<CR>` | Resume session under cursor |
-| `1`-`9` | Resume session by number |
-| `n` | Start a new session instead |
-| `d` | Delete session under cursor from disk (asks for confirmation) |
-| `q` / `<Esc>` | Close picker |
+Because the CLI does the listing and resuming, there's nothing for the plugin to parse or store, and the picker always matches what `claude --resume` shows in your terminal.
 
 ### Session names
 
