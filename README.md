@@ -97,6 +97,7 @@ require('claude').setup({
     sessions = '<leader>cs',    -- open Claude's native --resume picker
     next = '<leader>cj',        -- cycle to next session (shows it even if window is hidden)
     prev = '<leader>ck',        -- cycle to previous session
+    send_escape = '<C-e>',      -- terminal mode: send Esc to Claude (e.g. go back in --resume)
   },
 })
 ```
@@ -113,6 +114,7 @@ Set any keymap to `false` to disable it.
 | `<leader>ck` | normal | Cycle to previous session |
 | `<Esc>` | terminal | Exit terminal mode (enter normal mode in the float) |
 | `<Esc>` | normal (in float) | Hide the floating window |
+| `<C-e>` | terminal | Send Esc to Claude (e.g. step back in the `--resume` picker) |
 
 ## Commands
 
@@ -152,6 +154,8 @@ An explicit `--model` on `:Claude new ...` (or in `cli_args`) always wins over t
 Resuming uses the Claude CLI's own `--resume` picker. Run `:Claude resume` or press `<leader>cs`, and the plugin spawns a session running `claude --resume` in the current project — Claude renders its native picker inside the floating terminal and handles the selection.
 
 Because the CLI does the listing and resuming, there's nothing for the plugin to parse or store, and the picker always matches what `claude --resume` shows in your terminal.
+
+The picker uses `<Esc>` to step back from a preview or cancel, but in the floating terminal `<Esc>` leaves terminal mode instead. Press `<C-e>` (configurable via `keymaps.send_escape`) to send a real Esc to Claude — use it to back out of a preview or cancel the picker.
 
 ### Deleting past sessions
 

@@ -1,7 +1,29 @@
 -- ABOUTME: Manages terminal buffer lifecycle and Claude CLI process
 -- ABOUTME: Handles spawning, exit detection, and input to running sessions
 
+local config = require('claude.config')
+
 local M = {}
+
+function M._setup_keymaps(bufnr)
+  -- Esc exits terminal mode; a second Esc in normal mode hides the float
+  vim.api.nvim_buf_set_keymap(bufnr, 't', '<Esc>', [[<C-\><C-n>]], { noremap = true })
+  vim.api.nvim_buf_set_keymap(bufnr, 'n', '<Esc>', '', {
+    noremap = true,
+    callback = function()
+      vim.api.nvim_exec_autocmds('User', { pattern = 'ClaudeHide' })
+    end,
+  })
+
+  -- Sends a literal Esc to Claude (e.g. to step back in the --resume picker),
+  -- since terminal-mode <Esc> above is claimed for leaving terminal mode.
+  local send_escape = config.get().keymaps.send_escape
+  if send_escape then
+    vim.keymap.set('t', send_escape, function()
+      vim.fn.chansend(vim.b[bufnr].claude_job_id, '\27')
+    end, { buffer = bufnr })
+  end
+end
 
 function M.create(args, opts)
   opts = opts or {}
@@ -29,14 +51,7 @@ function M.create(args, opts)
     vim.b[bufnr].claude_job_id = job_id
   end)
 
-  -- Esc exits terminal mode; a second Esc in normal mode hides the float
-  vim.api.nvim_buf_set_keymap(bufnr, 't', '<Esc>', [[<C-\><C-n>]], { noremap = true })
-  vim.api.nvim_buf_set_keymap(bufnr, 'n', '<Esc>', '', {
-    noremap = true,
-    callback = function()
-      vim.api.nvim_exec_autocmds('User', { pattern = 'ClaudeHide' })
-    end,
-  })
+  M._setup_keymaps(bufnr)
 
   return bufnr, vim.b[bufnr].claude_job_id
 end
