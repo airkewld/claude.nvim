@@ -122,6 +122,7 @@ Set any keymap to `false` to disable it.
 | `:Claude new [name] [args...]` | Create a new session with optional CLI args |
 | `:Claude sessions` | Open the sessions menu |
 | `:Claude resume` | Open Claude's native `--resume` picker |
+| `:Claude delete` | Delete a past session for the current project |
 | `:Claude next` | Switch to the next session |
 | `:Claude prev` | Switch to the previous session |
 | `:Claude send` | Send current file path to active session |
@@ -168,6 +169,10 @@ The sessions menu is a floating buffer listing all sessions with their status. K
 Resuming uses the Claude CLI's own `--resume` picker. Run `:Claude resume`, or press `R` in the sessions menu, and the plugin spawns a session running `claude --resume` in the current project — Claude renders its native picker inside the floating terminal and handles the selection.
 
 Because the CLI does the listing and resuming, there's nothing for the plugin to parse or store, and the picker always matches what `claude --resume` shows in your terminal.
+
+### Deleting past sessions
+
+The native `--resume` picker has no delete action, so `:Claude delete` handles it. It lists the current project's past sessions (the same ones `claude --resume` shows), lets you pick one, confirms, and removes its transcript and sidecar directory from `~/.claude/projects/`. Sessions currently running in the plugin are protected from deletion.
 
 ### Session names
 
