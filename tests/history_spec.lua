@@ -72,6 +72,15 @@ describe('history._parse_lines', function()
     assert.equals('line one line two', head.title)
   end)
 
+  it('skips local-command output wrappers and uses the next real message', function()
+    local head = history._parse_lines({
+      user_line('<local-command-stdout>iTerm2 clipboard access enabled</local-command-stdout>'),
+      user_line('the real prompt'),
+    })
+    assert.equals('the real prompt', head.title)
+    assert.is_falsy(head.command_only)
+  end)
+
   it('skips slash-command entries and uses the next real message', function()
     local head = history._parse_lines({
       user_line('<command-name>/clear</command-name> <command-message>clear</command-message>'),

@@ -23,6 +23,8 @@ local function parse_lines(lines)
       local content = entry.message.content
       if content:match('^%s*<command%-name>') then
         command_only = true
+      elseif content:match('^%s*<local%-command') then
+        -- local command output, not a human prompt; keep scanning
       else
         return { title = flatten(content), cwd = entry.cwd }
       end
