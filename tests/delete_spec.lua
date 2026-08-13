@@ -20,8 +20,7 @@ describe('claude.delete', function()
     notified = nil
 
     for _, mod in ipairs({
-      'claude.delete', 'claude.config', 'claude.session',
-      'claude.menu', 'claude.history',
+      'claude.delete', 'claude.config', 'claude.session', 'claude.history',
     }) do
       package.loaded[mod] = nil
     end
@@ -33,9 +32,6 @@ describe('claude.delete', function()
     }
     package.loaded['claude.session'] = {
       list = function() return live_sessions end,
-    }
-    package.loaded['claude.menu'] = {
-      format_activity = function() return 'DATE' end,
     }
 
     orig_confirm = vim.fn.confirm
@@ -62,10 +58,11 @@ describe('claude.delete', function()
     end)
 
     it('includes the label and activity in each row', function()
+      local now = os.time()
       local entries = { entry('aaa', 'first') }
-      local rows = delete._build_rows(entries, {}, os.time())
+      local rows = delete._build_rows(entries, {}, now)
       assert.truthy(rows[1]:find('first', 1, true), 'expected label, got: ' .. rows[1])
-      assert.truthy(rows[1]:find('DATE', 1, true), 'expected activity, got: ' .. rows[1])
+      assert.truthy(rows[1]:match('%d%d:%d%d$'), 'expected HH:MM activity, got: ' .. rows[1])
     end)
 
     it('falls back to title then id for the label', function()

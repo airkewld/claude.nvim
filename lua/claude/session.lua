@@ -31,12 +31,6 @@ end
 function M._handle_idle(session)
   if not session.is_alive then return end
 
-  if session.on_settled then
-    local settled = session.on_settled
-    session.on_settled = nil
-    settled(session)
-  end
-
   if not session.init_prompt_sent and config.get().enforce_claude_md then
     local prompt = rules.build_init_prompt()
     if prompt then

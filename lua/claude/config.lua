@@ -28,6 +28,7 @@ local defaults = {
     sessions = '<leader>cs',
     next = '<leader>cj',
     prev = '<leader>ck',
+    send_escape = '<C-e>',
   },
 }
 

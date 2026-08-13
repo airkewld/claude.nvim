@@ -9,12 +9,21 @@ local function label_for(e)
   return e.name or e.title or e.id
 end
 
+local function format_activity(ts, now)
+  if not ts then return '' end
+  local today = os.date('*t', now)
+  local d = os.date('*t', ts)
+  if d.year == today.year and d.yday == today.yday then
+    return os.date('%H:%M', ts)
+  end
+  return os.date('%b %d', ts)
+end
+
 local function build_rows(entries, marked, now)
-  local menu = require('claude.menu')
   local lines = {}
   for i, e in ipairs(entries) do
     local box = marked[i] and '[x]' or '[ ]'
-    lines[i] = box .. ' ' .. label_for(e) .. '  ' .. menu.format_activity(e.mtime, now)
+    lines[i] = box .. ' ' .. label_for(e) .. '  ' .. format_activity(e.mtime, now)
   end
   return lines
 end
