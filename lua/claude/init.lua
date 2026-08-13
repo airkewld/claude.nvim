@@ -1,10 +1,9 @@
 -- ABOUTME: Public API for the Claude Code Neovim plugin
--- ABOUTME: Wires keymaps, commands, and autocmds to session and menu modules
+-- ABOUTME: Wires keymaps, commands, and autocmds to the session modules
 
 local config = require('claude.config')
 local window = require('claude.window')
 local session = require('claude.session')
-local menu = require('claude.menu')
 
 local M = {}
 
@@ -33,12 +32,12 @@ local function update_title()
   local winnr = session.get_winnr()
   local s = session.get_active()
   if winnr and vim.api.nvim_win_is_valid(winnr) and s then
-    window.set_title(winnr, s.name, mode_label())
+    window.set_title(winnr, mode_label())
   end
 end
 
 local function show(s)
-  local winnr = window.open(s.bufnr, s.name)
+  local winnr = window.open(s.bufnr)
   session.set_winnr(winnr)
   vim.cmd('startinsert')
   update_title()
@@ -133,9 +132,6 @@ local subcommands = {
     local s = session.create(name, #cli_args > 0 and cli_args or nil)
     if s then M.switch_to_active() end
   end,
-  sessions = function()
-    menu.open()
-  end,
   resume = function()
     require('claude.resume').open()
   end,
@@ -154,7 +150,7 @@ function M.setup(opts)
     if key then vim.keymap.set('n', key, fn, { desc = desc }) end
   end
   map(keys.toggle, toggle, 'Toggle Claude Code')
-  map(keys.sessions, menu.open, 'Claude sessions menu')
+  map(keys.sessions, function() require('claude.resume').open() end, 'Resume Claude session')
   map(keys.next, function() cycle('next') end, 'Next Claude session')
   map(keys.prev, function() cycle('prev') end, 'Previous Claude session')
 

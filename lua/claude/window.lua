@@ -5,12 +5,8 @@ local config = require('claude.config')
 
 local M = {}
 
-local function make_title(name, mode)
-  local parts = {}
-  table.insert(parts, ' Claude')
-  if name then
-    table.insert(parts, ' (' .. name .. ')')
-  end
+local function make_title(mode)
+  local parts = { ' Claude' }
   if mode then
     table.insert(parts, ' - ' .. mode)
   end
@@ -18,7 +14,7 @@ local function make_title(name, mode)
   return table.concat(parts)
 end
 
-function M.open(bufnr, name)
+function M.open(bufnr)
   local cfg = config.get().window
   local width = math.floor(vim.o.columns * cfg.width)
   local height = math.floor(vim.o.lines * cfg.height)
@@ -33,7 +29,7 @@ function M.open(bufnr, name)
     col = col,
     style = 'minimal',
     border = cfg.border,
-    title = make_title(name),
+    title = make_title(),
     title_pos = 'center',
   })
 
@@ -42,9 +38,9 @@ function M.open(bufnr, name)
   return winnr
 end
 
-function M.set_title(winnr, name, mode)
+function M.set_title(winnr, mode)
   vim.api.nvim_win_set_config(winnr, {
-    title = make_title(name, mode),
+    title = make_title(mode),
     title_pos = 'center',
   })
 end
