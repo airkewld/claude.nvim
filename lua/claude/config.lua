@@ -24,10 +24,11 @@ local defaults = {
     border = 'rounded',
   },
   keymaps = {
-    toggle = '<leader>cl',
-    sessions = '<leader>cs',
-    next = '<leader>cj',
-    prev = '<leader>ck',
+    toggle = '<leader>cct',
+    sessions = '<leader>ccs',
+    new = '<leader>ccn',
+    next = '<leader>ccj',
+    prev = '<leader>cck',
     send_escape = '<C-e>',
   },
 }

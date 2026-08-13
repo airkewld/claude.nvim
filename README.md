@@ -93,10 +93,11 @@ require('claude').setup({
     border = 'rounded',
   },
   keymaps = {
-    toggle = '<leader>cl',      -- toggle active session window
-    sessions = '<leader>cs',    -- open Claude's native --resume picker
-    next = '<leader>cj',        -- cycle to next session (shows it even if window is hidden)
-    prev = '<leader>ck',        -- cycle to previous session
+    toggle = '<leader>cct',     -- toggle active session window
+    sessions = '<leader>ccs',   -- open Claude's native --resume picker
+    new = '<leader>ccn',        -- create a new session (prompts for a name)
+    next = '<leader>ccj',       -- cycle to next session (shows it even if window is hidden)
+    prev = '<leader>cck',       -- cycle to previous session
     send_escape = '<C-e>',      -- terminal mode: send Esc to Claude (e.g. go back in --resume)
   },
 })
@@ -108,10 +109,11 @@ Set any keymap to `false` to disable it.
 
 | Key | Mode | Action |
 |-----|------|--------|
-| `<leader>cl` | normal | Toggle active session (prompts for a name and starts one if none is running) |
-| `<leader>cs` | normal | Open Claude's native `--resume` picker |
-| `<leader>cj` | normal | Cycle to next session (shows it even if window is hidden) |
-| `<leader>ck` | normal | Cycle to previous session |
+| `<leader>cct` | normal | Toggle active session (prompts for a name and starts one if none is running) |
+| `<leader>ccs` | normal | Open Claude's native `--resume` picker |
+| `<leader>ccn` | normal | Create a new session (prompts for a name) |
+| `<leader>ccj` | normal | Cycle to next session (shows it even if window is hidden) |
+| `<leader>cck` | normal | Cycle to previous session |
 | `<Esc>` | terminal | Exit terminal mode (enter normal mode in the float) |
 | `<Esc>` | normal (in float) | Hide the floating window |
 | `<C-e>` | terminal | Send Esc to Claude (e.g. step back in the `--resume` picker) |
@@ -151,7 +153,7 @@ An explicit `--model` on `:Claude new ...` (or in `cli_args`) always wins over t
 
 ## Resuming Past Sessions
 
-Resuming uses the Claude CLI's own `--resume` picker. Run `:Claude resume` or press `<leader>cs`, and the plugin spawns a session running `claude --resume` in the current project — Claude renders its native picker inside the floating terminal and handles the selection.
+Resuming uses the Claude CLI's own `--resume` picker. Run `:Claude resume` or press `<leader>ccs`, and the plugin spawns a session running `claude --resume` in the current project — Claude renders its native picker inside the floating terminal and handles the selection.
 
 Because the CLI does the listing and resuming, there's nothing for the plugin to parse or store, and the picker always matches what `claude --resume` shows in your terminal.
 
@@ -217,7 +219,7 @@ This only fires for sessions that aren't currently visible. Bringing the session
 
 ## Auto Review Mode
 
-If you haven't typed into the visible Claude session for `auto_review_timeout_ms` (default 10 minutes), the plugin will drop the window out of terminal-insert into review (normal) mode. You can then scroll, cycle with `<leader>cj`/`<leader>ck`, or close the window without needing `<C-\><C-n>` first.
+If you haven't typed into the visible Claude session for `auto_review_timeout_ms` (default 10 minutes), the plugin will drop the window out of terminal-insert into review (normal) mode. You can then scroll, cycle with `<leader>ccj`/`<leader>cck`, or close the window without needing `<C-\><C-n>` first.
 
 The timer tracks keypresses sent to Claude; any key resets it. Works even when Neovim is in a background tmux window.
 

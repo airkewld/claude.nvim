@@ -156,6 +156,7 @@ function M.setup(opts)
   end
   map(keys.toggle, toggle, 'Toggle Claude Code')
   map(keys.sessions, function() require('claude.resume').open() end, 'Resume Claude session')
+  map(keys.new, create_named, 'New Claude session')
   map(keys.next, function() cycle('next') end, 'Next Claude session')
   map(keys.prev, function() cycle('prev') end, 'Previous Claude session')
 
