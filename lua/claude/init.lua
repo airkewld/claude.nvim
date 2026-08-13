@@ -66,14 +66,19 @@ function M.hide_window()
   hide()
 end
 
+local function create_named()
+  vim.ui.input({ prompt = 'Session name (empty for unnamed): ' }, function(name)
+    if name == nil then return end
+    local s = session.create(name ~= '' and name or nil)
+    if s then show(s) end
+  end)
+end
+
 local function toggle()
   local s = session.get_active()
 
   if not s then
-    session.create()
-    s = session.get_active()
-    if not s then return end
-    show(s)
+    create_named()
     return
   end
 

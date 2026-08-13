@@ -107,7 +107,7 @@ Set any keymap to `false` to disable it.
 
 | Key | Mode | Action |
 |-----|------|--------|
-| `<leader>cl` | normal | Toggle active session (starts a fresh one if none is running) |
+| `<leader>cl` | normal | Toggle active session (prompts for a name and starts one if none is running) |
 | `<leader>cs` | normal | Open Claude's native `--resume` picker |
 | `<leader>cj` | normal | Cycle to next session (shows it even if window is hidden) |
 | `<leader>ck` | normal | Cycle to previous session |
