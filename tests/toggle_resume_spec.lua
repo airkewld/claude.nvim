@@ -72,4 +72,19 @@ describe('toggle with no active session', function()
     vim.cmd('Claude')
     assert.is_false(create_called)
   end)
+
+  it('the new-session keymap creates a session even when one is active', function()
+    active_session = { name = 'live', bufnr = vim.api.nvim_create_buf(false, true), is_alive = true }
+    input_response = 'another'
+
+    local new_action
+    for _, m in ipairs(vim.api.nvim_get_keymap('n')) do
+      if m.desc == 'New Claude session' and m.callback then new_action = m.callback end
+    end
+    assert.is_function(new_action)
+
+    new_action()
+    assert.is_true(create_called)
+    assert.equals('another', created_name)
+  end)
 end)

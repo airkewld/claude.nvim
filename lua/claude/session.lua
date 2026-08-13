@@ -42,7 +42,7 @@ function M._handle_idle(session)
 
   if not session_visible(session) and not session.notified_idle then
     session.notified_idle = true
-    vim.notify('Claude (' .. session.name .. ') is waiting for input', vim.log.levels.INFO)
+    vim.notify('Claude is waiting for input', vim.log.levels.INFO)
   end
 end
 
@@ -238,7 +238,7 @@ function M.on_exit(bufnr, exit_code)
   stop_idle_timer(session)
 
   if not session_visible(session) then
-    vim.notify('Claude (' .. session.name .. ') session ended', vim.log.levels.INFO)
+    vim.notify('Claude session ended', vim.log.levels.INFO)
   end
 
   if config.get().auto_remove_exited then
