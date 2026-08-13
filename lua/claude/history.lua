@@ -8,6 +8,8 @@ local function flatten(text)
 end
 
 local function parse_lines(lines)
+  local cwd
+  local command_only = false
   for _, line in ipairs(lines) do
     local ok, entry = pcall(vim.json.decode, line)
     if ok
@@ -17,10 +19,16 @@ local function parse_lines(lines)
       and type(entry.message) == 'table'
       and type(entry.message.content) == 'string'
     then
-      return { title = flatten(entry.message.content), cwd = entry.cwd }
+      if not cwd then cwd = entry.cwd end
+      local content = entry.message.content
+      if content:match('^%s*<command%-name>') then
+        command_only = true
+      else
+        return { title = flatten(content), cwd = entry.cwd }
+      end
     end
   end
-  return {}
+  return { cwd = cwd, command_only = command_only }
 end
 
 M._parse_lines = parse_lines
@@ -79,14 +87,16 @@ function M.list(root)
     local stat = vim.uv.fs_stat(path)
     if stat then
       local head = parse_lines(read_head(path))
-      table.insert(entries, {
-        id = vim.fn.fnamemodify(path, ':t:r'),
-        path = path,
-        title = head.title or '(no prompt)',
-        name = parse_name(read_tail(path, stat.size)),
-        cwd = head.cwd,
-        mtime = stat.mtime.sec,
-      })
+      if not head.command_only then
+        table.insert(entries, {
+          id = vim.fn.fnamemodify(path, ':t:r'),
+          path = path,
+          title = head.title or '(no prompt)',
+          name = parse_name(read_tail(path, stat.size)),
+          cwd = head.cwd,
+          mtime = stat.mtime.sec,
+        })
+      end
     end
   end
   table.sort(entries, function(a, b) return a.mtime > b.mtime end)
