@@ -38,7 +38,40 @@ function M.create(args, opts)
     end,
   })
 
+  -- Y in visual mode yanks the selection with terminal wraps rejoined, so long
+  -- commands paste as one line; copies to both the unnamed and system registers
+  vim.api.nvim_buf_set_keymap(bufnr, 'x', 'Y', '', {
+    noremap = true,
+    callback = function()
+      local srow, erow = vim.fn.line('v'), vim.fn.line('.')
+      if srow > erow then srow, erow = erow, srow end
+      local lines = vim.api.nvim_buf_get_lines(bufnr, srow - 1, erow, false)
+      local text = M.smart_join(lines, vim.api.nvim_win_get_width(0))
+      vim.fn.setreg('"', text)
+      vim.fn.setreg('+', text)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<Esc>', true, false, true), 'nx', false)
+    end,
+  })
+
   return bufnr, vim.b[bufnr].claude_job_id
+end
+
+-- Rejoins terminal wrap-induced line breaks: a physical line that fills the
+-- window width is a wrap continuation of the next line, so it joins with no
+-- separator; a shorter line ends a logical line and keeps its newline.
+function M.smart_join(lines, width)
+  local parts = {}
+  local cur = lines[1] or ''
+  for i = 2, #lines do
+    if vim.fn.strdisplaywidth(lines[i - 1]) >= width then
+      cur = cur .. lines[i]
+    else
+      table.insert(parts, cur)
+      cur = lines[i]
+    end
+  end
+  table.insert(parts, cur)
+  return table.concat(parts, '\n')
 end
 
 function M.send_input(job_id, text)
